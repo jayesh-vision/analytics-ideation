@@ -1,0 +1,150 @@
+{
+  "applications": [
+    {
+      "id": "field-force-mgmt",
+      "name": "Field Force Management",
+      "datasources": [
+        {
+          "id": "ffm-field-ops-pg",
+          "name": "Field Ops (PostgreSQL)",
+          "datasets": [
+            { "id": "ffm-technicians", "name": "Technicians roster" },
+            { "id": "ffm-work-orders", "name": "Work orders" },
+            { "id": "ffm-crew-schedule", "name": "Crew schedule" },
+            { "id": "ffm-sla-breaches", "name": "SLA breaches" }
+          ]
+        },
+        {
+          "id": "ffm-mobile-api",
+          "name": "Field Mobile API",
+          "datasets": [
+            { "id": "ffm-checkins", "name": "Technician check-ins" },
+            { "id": "ffm-job-photos", "name": "Job completion photos" },
+            { "id": "ffm-offline-sync", "name": "Offline sync log" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crm",
+      "name": "CRM",
+      "datasources": [
+        {
+          "id": "crm-salesforce",
+          "name": "Salesforce CRM",
+          "datasets": [
+            { "id": "crm-accounts", "name": "Accounts" },
+            { "id": "crm-contacts", "name": "Contacts" },
+            { "id": "crm-opportunities", "name": "Opportunities" },
+            { "id": "crm-leads", "name": "Leads" }
+          ]
+        },
+        {
+          "id": "crm-zendesk",
+          "name": "Customer Support (Zendesk)",
+          "datasets": [
+            { "id": "crm-support-tickets", "name": "Support tickets" },
+            { "id": "crm-csat", "name": "Customer satisfaction scores" },
+            { "id": "crm-response-times", "name": "Agent response times" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "network-discovery",
+      "name": "Network Discovery",
+      "datasources": [
+        {
+          "id": "nd-inventory-oracle",
+          "name": "Network Inventory (Oracle)",
+          "datasets": [
+            { "id": "nd-devices", "name": "Network devices" },
+            { "id": "nd-topology", "name": "Topology map" },
+            { "id": "nd-link-utilization", "name": "Link utilization" }
+          ]
+        },
+        {
+          "id": "nd-snmp-poller",
+          "name": "SNMP Poller",
+          "datasets": [
+            { "id": "nd-device-health", "name": "Device health metrics" },
+            { "id": "nd-interface-counters", "name": "Interface counters" },
+            { "id": "nd-alarms", "name": "Alarm events" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory",
+      "datasources": [
+        {
+          "id": "inv-sap-wms",
+          "name": "Warehouse Management (SAP)",
+          "datasets": [
+            { "id": "inv-stock-levels", "name": "Stock levels" },
+            { "id": "inv-purchase-orders", "name": "Purchase orders" },
+            { "id": "inv-reorder-points", "name": "Reorder points" }
+          ]
+        },
+        {
+          "id": "inv-rfid",
+          "name": "Asset Tracking (RFID)",
+          "datasets": [
+            { "id": "inv-asset-locations", "name": "Asset locations" },
+            { "id": "inv-asset-movement", "name": "Asset movement log" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scm",
+      "name": "SCM",
+      "datasources": [
+        {
+          "id": "scm-oracle-procurement",
+          "name": "Procurement (Oracle SCM)",
+          "datasets": [
+            { "id": "scm-vendor-contracts", "name": "Vendor contracts" },
+            { "id": "scm-requisitions", "name": "Purchase requisitions" },
+            { "id": "scm-supplier-performance", "name": "Supplier performance" }
+          ]
+        },
+        {
+          "id": "scm-logistics-pg",
+          "name": "Logistics (PostgreSQL)",
+          "datasets": [
+            { "id": "scm-shipment-tracking", "name": "Shipment tracking" },
+            { "id": "scm-delivery-sla", "name": "Delivery SLAs" },
+            { "id": "scm-freight-costs", "name": "Freight costs" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "itsm",
+      "name": "ITSM",
+      "datasources": [
+        {
+          "id": "itsm-servicenow",
+          "name": "ServiceNow",
+          "datasets": [
+            { "id": "itsm-tickets", "name": "Tickets" },
+            { "id": "itsm-problems", "name": "Problems" },
+            { "id": "itsm-incidents", "name": "Incidents" },
+            { "id": "itsm-changes", "name": "Changes" },
+            { "id": "itsm-service-requests", "name": "Service requests" }
+          ]
+        },
+        {
+          "id": "itsm-datadog",
+          "name": "Monitoring (Datadog)",
+          "datasets": [
+            { "id": "itsm-alert-events", "name": "Alert events" },
+            { "id": "itsm-uptime-metrics", "name": "Uptime metrics" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+@import 'tailwindcss' source(none);
+@import 'tw-animate-css';
+@import './default_theme.css';
+@import './globals.css';
+@import './nst/colors.css';
+@import './nst/spacing.css';
+@import './nst/typography-tokens.css';
+@import './nst/theme-tokens.css';
+@import './nst/vw-chips.css';
+@import './nst/vw-cards.css';
+@import './nst/vw-utilities.css';
+@import './nst/components.css';
+
+@source '../../**/*.{js,ts,jsx,tsx}';
+
+/* NST integration overrides — scoped to the Dashboard Composer list screen only.
+   .nst-table's own boxed border/radius is dropped so the list stays flush with
+   the page (per this app's existing flat list treatment); overflow must stay
+   visible so row/toolbar dropdown menus aren't clipped at the table edge. */
+.dashboard-list-table.nst-table {
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* .nst-btn has no built-in "filter applied" state — extend it with the same
+   accent tokens .nst-icon-btn.is-active already uses, for visual consistency. */
+.nst-btn.is-active {
+  border-color: var(--vw-color-accent-500);
+  color: var(--vw-color-accent-500);
+  background: var(--vw-color-accent-50);
+}
