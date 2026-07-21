@@ -12,17 +12,35 @@ import { ExplainerAgent } from "../surfaces/ExplainerAgent";
 const persona = PERSONAS[0];
 const ROOT_CRUMBS: BreadcrumbState = { extra: [] };
 
+// Lightweight client-side "orchestrator": guesses which BI task kind a free-text
+// ask is about, so Home's ask box can route straight into that agent's AI
+// Creation Studio with the typed text as the opening chat message.
+function inferKind(text: string): BiTaskKind {
+  const t = text.toLowerCase();
+  if (/\breport\b/.test(t)) return "report";
+  if (/\bwidget\b|\bchart\b|\bkpi\b/.test(t)) return "widget";
+  if (/\bdataset\b|\bdata set\b/.test(t)) return "dataset";
+  return "dashboard";
+}
+
 export function PersonaShell() {
   const [activeAgent, setActiveAgent] = useState<Agent | null>(null);
   const [crumbs, setCrumbs] = useState<BreadcrumbState>(ROOT_CRUMBS);
+  const [pendingPrompt, setPendingPrompt] = useState<string | undefined>(undefined);
 
-  const openAgent = (agent: Agent) => { setCrumbs(ROOT_CRUMBS); setActiveAgent(agent); };
-  const backToHome = () => { setActiveAgent(null); setCrumbs(ROOT_CRUMBS); };
+  const openAgent = (agent: Agent, prompt?: string) => { setCrumbs(ROOT_CRUMBS); setActiveAgent(agent); setPendingPrompt(prompt); };
+  const backToHome = () => { setActiveAgent(null); setCrumbs(ROOT_CRUMBS); setPendingPrompt(undefined); };
+
+  const askFromHome = (text: string) => {
+    const kind = inferKind(text);
+    const agent = persona.agents.find((a) => a.surface === "biTasks" && a.agentKey === kind);
+    if (agent) openAgent(agent, text);
+  };
 
   const renderSurface = (agent: Agent) => {
     switch (agent.surface) {
       case "biTasks":
-        return <BiTasksAgent kind={agent.agentKey as BiTaskKind} onBreadcrumb={setCrumbs} />;
+        return <BiTasksAgent kind={agent.agentKey as BiTaskKind} onBreadcrumb={setCrumbs} initialPrompt={pendingPrompt} />;
       case "biExplainer":
         return <ExplainerAgent />;
       default:
@@ -52,7 +70,7 @@ export function PersonaShell() {
           <div className="min-h-0 flex-1 overflow-y-auto">{renderSurface(activeAgent)}</div>
         </div>
       ) : (
-        <PersonaHome persona={persona} onOpenAgent={openAgent} />
+        <PersonaHome persona={persona} onOpenAgent={openAgent} onAsk={askFromHome} />
       )}
     </div>
   );

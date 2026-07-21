@@ -14,7 +14,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 14px;
+  --font-size: 16px;
 
   /* Typography variables */
   --text-4xl: 34px; /* h1 */

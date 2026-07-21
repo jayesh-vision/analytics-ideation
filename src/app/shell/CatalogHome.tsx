@@ -33,8 +33,14 @@ const SEV_BG: Record<string, string> = { Critical: "#FEE2E2", High: "#FFEDD5", M
 
 const SOURCE_OPTIONS = ["All types", "Datasources", "Datasets", "Widgets", "Reports", "Dashboards"];
 
-export function PersonaHome({ persona, onOpenAgent }: { persona: Persona; onOpenAgent: (a: Agent) => void }) {
+export function PersonaHome({ persona, onOpenAgent, onAsk }: { persona: Persona; onOpenAgent: (a: Agent) => void; onAsk?: (text: string) => void }) {
   const [ask, setAsk] = useState("");
+  const submitAsk = () => {
+    const text = ask.trim();
+    if (!text) return;
+    onAsk?.(text);
+    setAsk("");
+  };
   const [source, setSource] = useState(SOURCE_OPTIONS[0]);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [addAgentClicked, setAddAgentClicked] = useState(false);
@@ -59,6 +65,7 @@ export function PersonaHome({ persona, onOpenAgent }: { persona: Persona; onOpen
               <input
                 value={ask}
                 onChange={(e) => setAsk(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") submitAsk(); }}
                 placeholder={cfg.placeholder}
                 className="w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground truncate"
                 style={{ fontSize: "16px" }}
@@ -95,6 +102,7 @@ export function PersonaHome({ persona, onOpenAgent }: { persona: Persona; onOpen
               <div className="flex-1" />
               <button className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"><Mic className="h-4 w-4" /></button>
               <button
+                onClick={submitAsk}
                 disabled={!ask.trim()}
                 title="Send"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white shadow-sm transition-all hover:opacity-90 hover:shadow-md disabled:opacity-35 disabled:shadow-none"

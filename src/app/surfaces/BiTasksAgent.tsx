@@ -1,9 +1,9 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import {
   Table2, BarChart2, LayoutGrid, FileText, Eye, Trash2, RotateCcw, XCircle, Sparkles,
   CheckCircle2, Clock, Loader, AlertCircle, MoreVertical, Send,
-  Play, Download, RefreshCw, Edit, Check, X, Paperclip, Link2, Plus, ArrowUp, Info, ChevronDown, List, Search, Filter,
-  Upload, Settings, Kanban, Database, UserCircle, BookOpen,
+  Play, Download, RefreshCw, Edit, Check, X, ArrowUp, Info, ChevronDown, List, Search, Filter,
+  Upload, Settings, Kanban, Database, UserCircle, BookOpen, Maximize2,
 } from "../icons";
 import { AgentDocPanel } from "../shell/AgentDocs";
 import applicationCatalog from "../data/applicationCatalog.json";
@@ -103,6 +103,17 @@ const DASHBOARD_LIST: DashboardRow[] = [
 function dashboardRowToTask(r: DashboardRow): BiTask {
   return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo };
 }
+
+// Maps an applicationCatalog.json application name to this table's package/module
+// naming, for AI-created rows (the two catalogs use different naming schemes).
+const APP_TO_PACKAGE: Record<string, { packageName: string; moduleName: string }> = {
+  "Field Force Management": { packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations" },
+  "CRM": { packageName: "ANALYTICS", moduleName: "Customer intelligence" },
+  "Network Discovery": { packageName: "FIBERNEO", moduleName: "Network operations" },
+  "Inventory": { packageName: "ANALYTICS", moduleName: "Operations analytics" },
+  "SCM": { packageName: "ANALYTICS", moduleName: "Vendor management" },
+  "ITSM": { packageName: "ANALYTICS", moduleName: "Operations analytics" },
+};
 
 const MODULE_OPTIONS = ["All modules", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Vendor management", "Executive reporting", "FinOps"];
 const STATUS_OPTIONS: string[] = ["All statuses", "Approved", "Awaiting approval", "Draft", "Rejected"];
@@ -1330,8 +1341,8 @@ const DASHBOARD_DETAIL_WIDGETS = [
   { name: "Top data sources", desc: "Bar chart — which sources feed this dashboard's widgets" },
 ];
 
-function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
+  title: string; approval?: ApprovalStatus; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1396,7 +1407,7 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
             </div>
           </div>
 
-          {!isApproved && (
+          {!hideActions && !isApproved && (
             <div className="vw-card-footer-divider vw-flex vw-items-center vw-gap-sm">
               <button type="button" onClick={submit} disabled={submitting || isAwaiting} className="nst-btn nst-btn--filled nst-btn--sm" style={{ opacity: submitting || isAwaiting ? 0.5 : 1 }}>
                 <Check style={{ width: 14, height: 14 }} /> {isAwaiting ? "Awaiting approval" : submitting ? "Submitting…" : "Submit for approval"}
@@ -1532,8 +1543,8 @@ const WIDGET_DETAIL_ITEMS = [
   { name: "Configuration", desc: "Chart type, axis fields, filters, and color mapping" },
 ];
 
-function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; widgetType: WidgetType; datasetName: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
+  title: string; approval?: ApprovalStatus; widgetType: WidgetType; datasetName: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1591,7 +1602,7 @@ function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExpla
             </div>
           </div>
 
-          {!isApproved && (
+          {!hideActions && !isApproved && (
             <div className="vw-card-footer-divider vw-flex vw-items-center vw-gap-sm">
               <button type="button" onClick={submit} disabled={submitting || isAwaiting} className="nst-btn nst-btn--filled nst-btn--sm" style={{ opacity: submitting || isAwaiting ? 0.5 : 1 }}>
                 <Check style={{ width: 14, height: 14 }} /> {isAwaiting ? "Awaiting approval" : submitting ? "Submitting…" : "Submit for approval"}
@@ -1687,8 +1698,8 @@ const DATASET_DETAIL_ITEMS = [
   { name: "Used by widgets", desc: "Every widget currently bound to this dataset" },
 ];
 
-function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
+  title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1735,7 +1746,7 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
             </div>
           </div>
 
-          {!isApproved && (
+          {!hideActions && !isApproved && (
             <div className="vw-card-footer-divider vw-flex vw-items-center vw-gap-sm">
               <button type="button" onClick={submit} disabled={submitting || isAwaiting} className="nst-btn nst-btn--filled nst-btn--sm" style={{ opacity: submitting || isAwaiting ? 0.5 : 1 }}>
                 <Check style={{ width: 14, height: 14 }} /> {isAwaiting ? "Awaiting approval" : submitting ? "Submitting…" : "Submit for approval"}
@@ -1828,8 +1839,8 @@ const REPORT_DETAIL_ITEMS = [
 ];
 const REPORT_SECTIONS = ["Executive summary", "Dashboard highlights", "SLA compliance", "Recommendations"];
 
-function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; frequency: ReportFrequency; sourceDashboards: string[]; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
+  title: string; approval?: ApprovalStatus; frequency: ReportFrequency; sourceDashboards: string[]; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1879,7 +1890,7 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
             </div>
           </div>
 
-          {!isApproved && (
+          {!hideActions && !isApproved && (
             <div className="vw-card-footer-divider vw-flex vw-items-center vw-gap-sm">
               <button type="button" onClick={submit} disabled={submitting || isAwaiting} className="nst-btn nst-btn--filled nst-btn--sm" style={{ opacity: submitting || isAwaiting ? 0.5 : 1 }}>
                 <Check style={{ width: 14, height: 14 }} /> {isAwaiting ? "Awaiting approval" : submitting ? "Submitting…" : "Submit for approval"}
@@ -2235,193 +2246,16 @@ function FieldLabel({ label, optional }: { label: string; optional?: boolean }) 
   );
 }
 
-function AssignTaskPanel({ kind, onClose, onSubmitted }: { kind: BiTaskKind; onClose: () => void; onSubmitted: (message: string) => void }) {
-  const [application, setApplication] = useState<string | null>(null);
-  const [datasource, setDatasource] = useState<string | null>(null);
-  const [datasets, setDatasets] = useState<string[]>([]);
-  const [datasetsOpen, setDatasetsOpen] = useState(false);
-  const [prompt, setPrompt] = useState("");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [link, setLink] = useState("");
-  const [recurring, setRecurring] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const showDatasetPicker = kind !== "dataset";
-  const datasetIsOptional = kind === "dashboard";
-  const showRecurring = kind === "report";
-
-  // Cascading catalog lookups — each level filters against the one above it.
-  const selectedApplication = APPLICATION_CATALOG.applications.find((a) => a.name === application);
-  const datasourceOptions = selectedApplication?.datasources ?? [];
-  const selectedDatasource = datasourceOptions.find((d) => d.name === datasource);
-  const datasetOptions = selectedDatasource?.datasets ?? [];
-
-  const chooseApplication = (value: string) => {
-    setApplication(value || null);
-    setDatasource(null);
-    setDatasets([]);
-  };
-  const chooseDatasource = (value: string) => {
-    setDatasource(value || null);
-    setDatasets([]);
-  };
-  const toggleDataset = (d: string) => setDatasets((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d]));
-
-  const canSubmit = !!application && !!datasource && !!prompt.trim() && (datasetIsOptional || !showDatasetPicker ? true : datasets.length > 0);
-
-  const submit = () => {
-    if (!canSubmit || submitting) return;
-    setSubmitting(true);
-    setTimeout(() => onSubmitted(`New ${TASK_NOUN[kind]} request created for ${application} ✓`), 700);
-  };
-
-  const selectClass = "w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50";
-  const selectStyle = { fontSize: "13px", fontWeight: 600 } as const;
-
-  return (
-    <div className="mb-5 rounded-[14px] border border-border bg-card">
-      <div className="px-5 pb-4 pt-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-foreground" style={{ fontSize: "15px", fontWeight: 700 }}>New {TASK_NOUN[kind]}</span>
-          </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-        </div>
-
-        {/* Field row — mirrors the "What should I check?" panel */}
-        <div className={`mb-4 grid gap-4 ${showDatasetPicker ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-          <div>
-            <FieldLabel label="Application" />
-            <select value={application ?? ""} onChange={(e) => chooseApplication(e.target.value)} className={selectClass} style={selectStyle}>
-              <option value="" disabled>Choose an application…</option>
-              {APPLICATION_CATALOG.applications.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <FieldLabel label="Datasource" />
-            <select
-              value={datasource ?? ""}
-              disabled={!application}
-              onChange={(e) => chooseDatasource(e.target.value)}
-              className={selectClass}
-              style={selectStyle}
-            >
-              <option value="" disabled>{application ? "Choose a datasource…" : "Select an application first"}</option>
-              {datasourceOptions.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </select>
-          </div>
-          {showDatasetPicker && (
-            <div className="relative">
-              <FieldLabel label={datasetIsOptional ? "Dataset" : "Datasets"} optional={datasetIsOptional} />
-              <button
-                disabled={!datasource}
-                onClick={() => setDatasetsOpen((v) => !v)}
-                className={`${selectClass} flex items-center justify-between gap-2 text-left ${datasetsOpen ? "border-primary/50" : ""}`}
-                style={selectStyle}
-              >
-                <span className={`truncate ${datasets.length ? "text-foreground" : "text-muted-foreground"}`}>
-                  {!application ? "Select an application first" : !datasource ? "Select a datasource first" : datasets.length === 0 ? "Choose datasets…" : datasets.length === 1 ? datasets[0] : `${datasets.length} datasets selected`}
-                </span>
-                <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform ${datasetsOpen ? "rotate-180" : ""}`} />
-              </button>
-              {datasetsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setDatasetsOpen(false)} />
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-[10px] border border-border bg-card py-1 shadow-lg">
-                    {datasetOptions.length === 0 && (
-                      <div className="px-3 py-2 text-muted-foreground" style={{ fontSize: "12.5px" }}>No datasets for this datasource yet.</div>
-                    )}
-                    {datasetOptions.map((d) => (
-                      <label key={d.id} className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-muted/50">
-                        <input type="checkbox" checked={datasets.includes(d.name)} onChange={() => toggleDataset(d.name)} />
-                        <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 500 }}>{d.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          <div>
-            <FieldLabel label="Reference document" optional />
-            <div className="flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-2.5">
-              <label className="cursor-pointer text-muted-foreground hover:text-foreground" title={fileName ?? "Attach a file (.txt, .md, .doc, .docx, .pdf)"}>
-                <Paperclip className="h-4 w-4" />
-                <input type="file" accept=".txt,.md,.doc,.docx,.pdf" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)} />
-              </label>
-              <Link2 className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <input
-                value={fileName ?? link}
-                readOnly={!!fileName}
-                onChange={(e) => setLink(e.target.value)}
-                placeholder="Attach or paste a link"
-                className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-                style={{ fontSize: "12.5px" }}
-              />
-              {fileName && <button onClick={() => setFileName(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>}
-            </div>
-          </div>
-        </div>
-
-        {/* Prompt row */}
-        <FieldLabel label="What do you need" />
-        <div className="flex items-start gap-2.5 rounded-[12px] border border-border bg-[#FAFBFD] px-3.5 py-3 transition-colors focus-within:border-primary/50">
-          <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            placeholder={PROMPT_PLACEHOLDER[kind]}
-            rows={4}
-            className="min-w-0 flex-1 resize-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-            style={{ fontSize: "13px", lineHeight: 1.6 }}
-          />
-        </div>
-        <p className="mt-1.5 text-muted-foreground" style={{ fontSize: "11.5px" }}>
-          Describe it in plain language — the agent drafts the {TASK_NOUN[kind]}.
-        </p>
-      </div>
-
-      {/* Footer — hint + primary action, like "Review quality →" */}
-      <div className="flex items-center gap-3 border-t border-border px-5 py-3">
-        {showRecurring && (
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
-            <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Recurring delivery <span className="text-muted-foreground" style={{ fontWeight: 400 }}>(optional)</span></span>
-          </label>
-        )}
-        <div className="flex-1" />
-        {!canSubmit && (
-          <span className="text-muted-foreground" style={{ fontSize: "12.5px" }}>
-            {kind === "widget" || kind === "report"
-              ? "Pick an application, datasource and datasets, then describe what you need"
-              : "Pick an application and datasource, then describe what you need"}
-          </span>
-        )}
-        <button
-          onClick={submit}
-          disabled={!canSubmit || submitting}
-          className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-4 py-2 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ fontSize: "13px", fontWeight: 600 }}
-        >
-          {submitting ? "Creating…" : "Create"} <ArrowUp className="h-4 w-4 rotate-45" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export interface BreadcrumbState { extra: { label: string }[]; backToRoot?: () => void }
 
-export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void }) {
+export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void; initialPrompt?: string }) {
   const meta = KIND_META[kind];
   const tasks = TASKS_BY_KIND[kind];
-  const [view, setView] = useState<"list" | "preview" | "chat">("list");
+  const [view, setView] = useState<"list" | "preview" | "chat" | "studio">(() => (initialPrompt ? "studio" : "list"));
   const [selected, setSelected] = useState<BiTask | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
-  const [showAssign, setShowAssign] = useState(false);
   const [showDoc, setShowDoc] = useState(false);
   const [explainIntro, setExplainIntro] = useState(false);
   const [errorTask, setErrorTask] = useState<BiTask | null>(null);
@@ -2441,10 +2275,234 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
   const selectedDataset = kind === "dataset" && selected ? DATASET_LIST.find((d) => d.id === selected.id) : undefined;
   const selectedReport = kind === "report" && selected ? REPORT_LIST.find((r) => r.id === selected.id) : undefined;
 
+  // --- AI Creation Studio (all 4 kinds) ----------------------------------
+  type StudioMsg = { role: "user" | "agent"; text: string };
+  const [studioMessages, setStudioMessages] = useState<StudioMsg[]>([]);
+  const [studioInput, setStudioInput] = useState("");
+  const [studioThinking, setStudioThinking] = useState(false);
+  const [studioStage, setStudioStage] = useState<"gather" | "verify" | "generating" | "result" | "saved">("gather");
+  const [studioApplication, setStudioApplication] = useState<string | null>(null);
+  const [studioDatasource, setStudioDatasource] = useState<string | null>(null);
+  const [studioDataset, setStudioDataset] = useState<string | null>(null);
+  const [studioWidgetType, setStudioWidgetType] = useState<WidgetType>("Bar chart");
+  const [studioReportDashboards, setStudioReportDashboards] = useState<string[]>([]);
+  const [studioReportFrequency, setStudioReportFrequency] = useState<ReportFrequency | null>(null);
+  const [studioSteps, setStudioSteps] = useState(0);
+  const [studioSeed, setStudioSeed] = useState(0);
+  const [studioTitle, setStudioTitle] = useState("");
+  const [studioExpanded, setStudioExpanded] = useState(false);
+  const initialPromptConsumed = useRef(false);
+
+  const STUDIO_STEPS: Record<BiTaskKind, string[]> = {
+    dashboard: ["Reading context", "Resolving datasets", "Composing layout"],
+    widget: ["Reading context", "Resolving dataset", "Choosing visualization"],
+    dataset: ["Reading context", "Resolving source", "Validating schema"],
+    report: ["Reading context", "Gathering dashboards", "Drafting narrative"],
+  };
+  const STUDIO_BUILDING_MSG: Record<BiTaskKind, string> = {
+    dashboard: "Building your dashboard — resolving datasets and composing the layout…",
+    widget: "Building your widget — resolving the dataset and choosing a visualization…",
+    dataset: "Building your dataset — resolving the source and validating the schema…",
+    report: "Compiling your report — gathering the source dashboards and drafting the narrative…",
+  };
+  const STUDIO_READY_MSG: Record<BiTaskKind, string> = {
+    dashboard: "Here's your dashboard — take a look on the right. Save it as a draft to keep working on it, or tell me what to change.",
+    widget: "Here's your widget — take a look on the right. Save it as a draft to keep working on it, or tell me what to change.",
+    dataset: "Here's your dataset — take a look on the right. Save it as a draft to keep working on it, or tell me what to change.",
+    report: "Here's your report — take a look on the right. Save it as a draft to keep working on it, or tell me what to change.",
+  };
+
+  const extractCatalog = (text: string): { application: string | null; datasource: string | null; dataset: string | null } => {
+    const lower = text.toLowerCase();
+    for (const app of APPLICATION_CATALOG.applications) {
+      if (!lower.includes(app.name.toLowerCase())) continue;
+      for (const ds of app.datasources) {
+        if (!lower.includes(ds.name.toLowerCase())) continue;
+        for (const dset of ds.datasets) {
+          if (lower.includes(dset.name.toLowerCase())) return { application: app.name, datasource: ds.name, dataset: dset.name };
+        }
+        return { application: app.name, datasource: ds.name, dataset: null };
+      }
+      return { application: app.name, datasource: null, dataset: null };
+    }
+    return { application: null, datasource: null, dataset: null };
+  };
+
+  const extractReportInfo = (text: string): { dashboards: string[]; frequency: ReportFrequency | null } => {
+    const lower = text.toLowerCase();
+    const dashboards = DASHBOARD_LIST.filter((d) => lower.includes(d.name.toLowerCase())).map((d) => d.name);
+    let frequency: ReportFrequency | null = null;
+    if (/\bweekly\b/.test(lower)) frequency = "Weekly";
+    else if (/\bmonthly\b/.test(lower)) frequency = "Monthly";
+    else if (/\bquarterly\b/.test(lower)) frequency = "Quarterly";
+    else if (/\bone[\s-]?time\b/.test(lower)) frequency = "One-time";
+    return { dashboards, frequency };
+  };
+
+  const inferWidgetType = (text: string): WidgetType | null => {
+    const t = text.toLowerCase();
+    if (/\bkpi\b|\btile\b/.test(t)) return "KPI tile";
+    if (/\btable\b|\blist\b/.test(t)) return "Table";
+    if (/\btrend\b|\bline\b/.test(t)) return "Line chart";
+    if (/\bbar\b|\bcompare\b/.test(t)) return "Bar chart";
+    return null;
+  };
+
+  const chooseStudioApplication = (value: string) => { setStudioApplication(value || null); setStudioDatasource(null); setStudioDataset(null); };
+  const chooseStudioDatasource = (value: string) => { setStudioDatasource(value || null); setStudioDataset(null); };
+  const toggleReportDashboard = (name: string) => setStudioReportDashboards((cur) => (cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]));
+  const studioSelectedApplication = APPLICATION_CATALOG.applications.find((a) => a.name === studioApplication);
+  const studioDatasourceOptions = studioSelectedApplication?.datasources ?? [];
+  const studioSelectedDatasource = studioDatasourceOptions.find((d) => d.name === studioDatasource);
+  const studioDatasetOptions = studioSelectedDatasource?.datasets ?? [];
+  const canGenerate =
+    kind === "report" ? studioReportDashboards.length > 0 && !!studioReportFrequency
+    : kind === "widget" ? !!studioApplication && !!studioDatasource && !!studioDataset
+    : !!studioApplication && !!studioDatasource; // dashboard, dataset
+
+  const sendStudioMessage = (raw?: string) => {
+    const text = (raw ?? studioInput).trim();
+    if (!text) return;
+    setStudioMessages((m) => [...m, { role: "user", text }]);
+    setStudioInput("");
+    setStudioThinking(true);
+    setTimeout(() => {
+      let reply: string;
+      if (kind === "report") {
+        const found = extractReportInfo(text);
+        const nextDashboards = found.dashboards.length ? Array.from(new Set([...studioReportDashboards, ...found.dashboards])) : studioReportDashboards;
+        const nextFrequency = found.frequency ?? studioReportFrequency;
+        setStudioReportDashboards(nextDashboards);
+        setStudioReportFrequency(nextFrequency);
+        if (nextDashboards.length && nextFrequency) {
+          reply = `Got it — I'll compile a ${nextFrequency.toLowerCase()} report from ${nextDashboards.join(", ")}. Review on the right and click Generate when you're ready.`;
+        } else if (nextDashboards.length) {
+          reply = `Thanks — I'll pull from ${nextDashboards.join(", ")}. I couldn't tell how often you want it, so pick a frequency on the right.`;
+        } else if (nextFrequency) {
+          reply = `Got it — ${nextFrequency}. I couldn't find a specific dashboard in that, so pick one or more on the right.`;
+        } else {
+          reply = "Got it — I couldn't find a specific dashboard or cadence in that, so please pick the source dashboards and frequency on the right.";
+        }
+      } else {
+        const found = extractCatalog(text);
+        const nextApp = found.application ?? studioApplication;
+        const nextDs = found.application ? found.datasource : studioDatasource;
+        const nextDset = found.application ? found.dataset : studioDataset;
+        setStudioApplication(nextApp);
+        setStudioDatasource(nextDs);
+        setStudioDataset(nextDset);
+        if (kind === "widget") {
+          const wt = inferWidgetType(text);
+          if (wt) setStudioWidgetType(wt);
+        }
+        const needsDataset = kind === "widget";
+        if (nextApp && nextDs && (!needsDataset || nextDset)) {
+          reply = `Got it — I'll use ${nextApp} → ${nextDs}${nextDset ? ` → ${nextDset}` : ""}. Review the details on the right and click Generate when you're ready.`;
+        } else if (nextApp && nextDs) {
+          reply = `Thanks — I'll use ${nextApp} → ${nextDs}. Pick a dataset on the right to continue.`;
+        } else if (nextApp) {
+          reply = `Thanks — I'll use ${nextApp}. I couldn't tell which datasource from that, so pick one on the right.`;
+        } else {
+          reply = "Got it — I couldn't find a specific application in that, so please choose the details on the right.";
+        }
+      }
+      setStudioThinking(false);
+      setStudioMessages((m) => [...m, { role: "agent", text: reply }]);
+      setStudioStage((s) => (s === "gather" ? "verify" : s));
+    }, 650);
+  };
+
+  const handleGenerate = () => {
+    if (!canGenerate) return;
+    setStudioStage("generating");
+    setStudioSteps(0);
+    setStudioMessages((m) => [...m, { role: "agent", text: STUDIO_BUILDING_MSG[kind] }]);
+    setTimeout(() => setStudioSteps(1), 500);
+    setTimeout(() => setStudioSteps(2), 1050);
+    setTimeout(() => {
+      setStudioSteps(3);
+      let title: string;
+      if (kind === "report") {
+        title = studioReportDashboards.length === 1
+          ? `${studioReportDashboards[0]} report`
+          : `${studioReportFrequency} report (${studioReportDashboards.length} dashboards)`;
+      } else if (kind === "widget") {
+        title = `${studioDataset} widget`;
+      } else if (kind === "dataset") {
+        title = `${studioDatasource} dataset`;
+      } else {
+        title = studioDataset ? `${studioDataset} dashboard` : studioDatasource ? `${studioDatasource} dashboard` : "New AI dashboard";
+      }
+      setStudioTitle(title);
+      setStudioSeed(Date.now());
+      setStudioStage("result");
+      setStudioMessages((m) => [...m, { role: "agent", text: STUDIO_READY_MSG[kind] }]);
+    }, 1650);
+  };
+
+  const handleSaveDraft = () => {
+    const id = `ai-${Date.now()}`;
+    const mapping = APP_TO_PACKAGE[studioApplication ?? ""] ?? { packageName: "ANALYTICS", moduleName: "Operations analytics" };
+    if (kind === "dashboard") {
+      DASHBOARD_LIST.unshift({
+        id, status: "Draft", name: studioTitle, displayName: studioTitle,
+        packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
+        scheduled: false, creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+      });
+    } else if (kind === "widget") {
+      WIDGET_LIST.unshift({
+        id, status: "Draft", name: studioTitle, displayName: studioTitle,
+        packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
+        widgetType: studioWidgetType, datasetName: studioDataset ?? "—",
+        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+      });
+    } else if (kind === "dataset") {
+      DATASET_LIST.unshift({
+        id, status: "Draft", name: studioTitle, displayName: studioTitle,
+        packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
+        rowCount: pick([1240, 3860, 9120, 15400], seedFromId(id)), sourceType: studioDatasource ?? "—",
+        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+      });
+    } else {
+      REPORT_LIST.unshift({
+        id, status: "Draft", name: studioTitle, displayName: studioTitle,
+        packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private",
+        frequency: studioReportFrequency ?? "Monthly", sourceDashboards: studioReportDashboards,
+        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+      });
+    }
+    setStudioStage("saved");
+    setStudioMessages((m) => [...m, { role: "agent", text: `Saved "${studioTitle}" as a draft ✓ — you'll find it at the top of your ${TASK_NOUN[kind]} list.` }]);
+  };
+
+  const studioGreeting = (): StudioMsg => ({
+    role: "agent",
+    text: kind === "report"
+      ? `Hi! I'm the ${meta.label}. Tell me which dashboards to pull from and how often, and I'll draft the report.`
+      : `Hi! I'm the ${meta.label}. Describe the ${TASK_NOUN[kind]} you'd like and I'll get started — mention the application or data if you know it.`,
+  });
+
+  const resetStudio = () => {
+    setStudioMessages([studioGreeting()]); setStudioStage("gather");
+    setStudioApplication(null); setStudioDatasource(null); setStudioDataset(null);
+    setStudioWidgetType("Bar chart"); setStudioReportDashboards([]); setStudioReportFrequency(null);
+    setStudioTitle(""); setStudioExpanded(false);
+  };
+
+  useEffect(() => {
+    setStudioMessages([studioGreeting()]);
+    if (initialPrompt && !initialPromptConsumed.current) {
+      initialPromptConsumed.current = true;
+      sendStudioMessage(initialPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!onBreadcrumb) return;
-    if (view !== "list" && selected) onBreadcrumb({ extra: [{ label: selected.title }], backToRoot: backToList });
-    else onBreadcrumb({ extra: [] });
+    if (view === "list") onBreadcrumb({ extra: [] });
+    else if (selected) onBreadcrumb({ extra: [{ label: selected.title }], backToRoot: backToList });
+    else onBreadcrumb({ extra: [], backToRoot: backToList });
   }, [view, selected]);
 
   if (view === "preview" && selected) {
@@ -2552,6 +2610,267 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
     );
   }
 
+  if (view === "studio") {
+    const renderResultPreview = () => {
+      if (kind === "widget") {
+        return (
+          <WidgetPreview
+            title={studioTitle} approval={undefined} seed={studioSeed}
+            widgetType={studioWidgetType} datasetName={studioDataset ?? "—"}
+            onExplainAi={() => {}} onSubmit={() => {}} onDiscard={() => {}} hideActions
+          />
+        );
+      }
+      if (kind === "dataset") {
+        return (
+          <DatasetPreview
+            title={studioTitle} approval={undefined} seed={studioSeed} sourceType={studioDatasource ?? "—"}
+            onExplainAi={() => {}} onSubmit={() => {}} onDiscard={() => {}} hideActions
+          />
+        );
+      }
+      if (kind === "report") {
+        return (
+          <ReportPreview
+            title={studioTitle} approval={undefined} seed={studioSeed}
+            frequency={studioReportFrequency ?? "Monthly"} sourceDashboards={studioReportDashboards}
+            onExplainAi={() => {}} onSubmit={() => {}} onDiscard={() => {}} hideActions
+          />
+        );
+      }
+      return (
+        <DashboardPreview
+          title={studioTitle} approval={undefined} seed={studioSeed}
+          onExplainAi={() => {}} onSubmit={() => {}} onDiscard={() => {}} hideActions
+        />
+      );
+    };
+
+    if (studioExpanded) {
+      return (
+        <div className="flex h-full flex-col">
+          <div className="flex flex-shrink-0 items-center justify-between border-b border-border bg-card px-6 py-3">
+            <span className="text-foreground" style={{ fontSize: "13.5px", fontWeight: 600 }}>{studioTitle || `${meta.label} preview`}</span>
+            <button onClick={() => setStudioExpanded(false)} className="nst-btn nst-btn--sm"><X style={{ width: 14, height: 14 }} /> Exit full screen</button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{renderResultPreview()}</div>
+        </div>
+      );
+    }
+
+    const userText = studioMessages.filter((m) => m.role === "user").map((m) => m.text).join(" ");
+
+    return (
+      <div className="flex h-full">
+        {/* Left — chat, 40% */}
+        <div className="flex w-[40%] flex-shrink-0 flex-col border-r border-border">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-card px-5 py-3">
+            <meta.icon className="h-4 w-4 text-primary" />
+            <span className="text-foreground" style={{ fontSize: "13.5px", fontWeight: 600 }}>{meta.label} — AI Assistant</span>
+          </div>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
+            {studioMessages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "bg-muted/50 text-foreground"}`}
+                  style={{ fontSize: "13px", lineHeight: 1.5 }}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {studioThinking && (
+              <div className="flex justify-start">
+                <div className="inline-flex items-center gap-1 rounded-[12px] bg-muted/50 px-3.5 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: "0ms" }} />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: "120ms" }} />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground" style={{ animationDelay: "240ms" }} />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex-shrink-0 border-t border-border px-4 py-3">
+            <div className="flex items-end gap-2 rounded-[12px] border border-border bg-card px-3 py-2 focus-within:border-primary/40">
+              <textarea
+                value={studioInput}
+                onChange={(e) => setStudioInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendStudioMessage(); } }}
+                placeholder={PROMPT_PLACEHOLDER[kind]}
+                rows={2}
+                className="min-w-0 flex-1 resize-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+                style={{ fontSize: "13px" }}
+              />
+              <button
+                onClick={() => sendStudioMessage()}
+                disabled={!studioInput.trim()}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white disabled:opacity-35"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right — result / steps, 60% */}
+        <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+          {studioStage === "gather" && (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <meta.icon className="h-6 w-6 text-primary" />
+              </div>
+              <div className="text-foreground" style={{ fontSize: "14px", fontWeight: 600 }}>
+                {kind === "report" ? "Which dashboards should this report cover?" : `Describe the ${TASK_NOUN[kind]} you'd like`}
+              </div>
+              <p className="mt-1.5 max-w-[320px] text-muted-foreground" style={{ fontSize: "12.5px", lineHeight: 1.5 }}>
+                {kind === "report"
+                  ? "Mention the dashboards and how often — I'll fill in the rest, or pick manually."
+                  : "Mention the application or data if you know it — I'll fill in the rest, or you can pick it manually."}
+              </p>
+            </div>
+          )}
+
+          {studioStage === "verify" && (
+            <div className="mx-auto max-w-[640px]">
+              <div className="mb-4 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-foreground" style={{ fontSize: "14px", fontWeight: 600 }}>Confirm the details</span>
+              </div>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                {kind === "report" ? (
+                  <>
+                    <FieldLabel label="Source dashboards" />
+                    <div className="max-h-[220px] space-y-1 overflow-y-auto rounded-[10px] border border-border p-2">
+                      {DASHBOARD_LIST.map((d) => (
+                        <label key={d.id} className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-1.5 hover:bg-muted/40">
+                          <input type="checkbox" checked={studioReportDashboards.includes(d.name)} onChange={() => toggleReportDashboard(d.name)} />
+                          <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 500 }}>{d.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-4">
+                      <FieldLabel label="Frequency" />
+                      <select
+                        value={studioReportFrequency ?? ""}
+                        onChange={(e) => setStudioReportFrequency((e.target.value || null) as ReportFrequency | null)}
+                        className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none"
+                        style={{ fontSize: "13px", fontWeight: 600 }}
+                      >
+                        <option value="" disabled>Choose a frequency…</option>
+                        {(["Weekly", "Monthly", "Quarterly", "One-time"] as ReportFrequency[]).map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`grid gap-4 ${kind === "widget" ? "md:grid-cols-4" : kind === "dataset" ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+                    <div>
+                      <FieldLabel label="Application" />
+                      <select value={studioApplication ?? ""} onChange={(e) => chooseStudioApplication(e.target.value)} className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none" style={{ fontSize: "13px", fontWeight: 600 }}>
+                        <option value="" disabled>Choose an application…</option>
+                        {APPLICATION_CATALOG.applications.map((a) => <option key={a.id} value={a.name}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <FieldLabel label="Datasource" />
+                      <select value={studioDatasource ?? ""} disabled={!studioApplication} onChange={(e) => chooseStudioDatasource(e.target.value)} className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50" style={{ fontSize: "13px", fontWeight: 600 }}>
+                        <option value="" disabled>{studioApplication ? "Choose a datasource…" : "Select an application first"}</option>
+                        {studioDatasourceOptions.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    {kind !== "dataset" && (
+                      <div>
+                        <FieldLabel label="Dataset" optional={kind === "dashboard"} />
+                        <select value={studioDataset ?? ""} disabled={!studioDatasource} onChange={(e) => setStudioDataset(e.target.value || null)} className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none disabled:cursor-not-allowed disabled:opacity-50" style={{ fontSize: "13px", fontWeight: 600 }}>
+                          <option value="">{studioDatasource ? "Choose a dataset…" : "Select a datasource first"}</option>
+                          {studioDatasetOptions.map((d) => <option key={d.id} value={d.name}>{d.name}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {kind === "widget" && (
+                      <div>
+                        <FieldLabel label="Widget type" />
+                        <select value={studioWidgetType} onChange={(e) => setStudioWidgetType(e.target.value as WidgetType)} className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none" style={{ fontSize: "13px", fontWeight: 600 }}>
+                          {(["KPI tile", "Bar chart", "Line chart", "Table"] as WidgetType[]).map((w) => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {userText && (
+                  <div className="mt-4 rounded-[10px] bg-muted/30 px-3.5 py-3">
+                    <div className="text-muted-foreground" style={{ fontSize: "11px", fontWeight: 600 }}>YOUR REQUEST</div>
+                    <p className="mt-1 text-foreground" style={{ fontSize: "12.5px", lineHeight: 1.5 }}>{userText}</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={handleGenerate}
+                  disabled={!canGenerate}
+                  className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-2.5 text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                  style={{ fontSize: "13px", fontWeight: 600 }}
+                >
+                  <Sparkles className="h-4 w-4" /> Generate {TASK_NOUN[kind]}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {studioStage === "generating" && (
+            <div className="mx-auto flex max-w-[420px] flex-col items-center py-20 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                <Loader className="h-7 w-7 animate-spin text-primary" />
+              </div>
+              <div className="mb-5 text-foreground" style={{ fontSize: "15px", fontWeight: 600 }}>Building your {TASK_NOUN[kind]}…</div>
+              <div className="w-full space-y-2.5 text-left">
+                {STUDIO_STEPS[kind].map((label, i) => (
+                  <div key={label} className="flex items-center gap-2.5">
+                    {studioSteps > i ? (
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-[#047857]" />
+                    ) : studioSteps === i ? (
+                      <Loader className="h-4 w-4 flex-shrink-0 animate-spin text-primary" />
+                    ) : (
+                      <div className="h-4 w-4 flex-shrink-0 rounded-full border border-border" />
+                    )}
+                    <span className="text-foreground" style={{ fontSize: "13px", fontWeight: studioSteps >= i ? 600 : 400, opacity: studioSteps >= i ? 1 : 0.5 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(studioStage === "result" || studioStage === "saved") && (
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-foreground" style={{ fontSize: "14px", fontWeight: 600 }}>{studioStage === "saved" ? "Saved as draft" : `Your ${TASK_NOUN[kind]} is ready`}</span>
+                <button onClick={() => setStudioExpanded(true)} className="nst-btn nst-btn--sm"><Maximize2 style={{ width: 14, height: 14 }} /> Expand</button>
+              </div>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                {renderResultPreview()}
+              </div>
+              {studioStage === "result" ? (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-primary/20 bg-primary/5 px-4 py-3">
+                  <span className="text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>Save this {TASK_NOUN[kind]} to keep working on it later?</span>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <button onClick={resetStudio} className="nst-btn nst-btn--sm">Discard</button>
+                    <button onClick={handleSaveDraft} className="nst-btn nst-btn--filled nst-btn--sm"><Check style={{ width: 14, height: 14 }} /> Save as draft</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border px-4 py-3" style={{ borderColor: "#D1FAE5", background: "#ECFDF5" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#047857" }}>Saved ✓ — find it in your {TASK_NOUN[kind]} list anytime.</span>
+                  <div className="flex flex-shrink-0 gap-2">
+                    <button onClick={resetStudio} className="nst-btn nst-btn--sm">Create another</button>
+                    <button onClick={() => setView("list")} className="nst-btn nst-btn--filled nst-btn--sm">View in list</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -2590,46 +2909,28 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
             {flash}
           </div>
         )}
-        {showAssign ? (
-          <AssignTaskPanel
-            kind={kind}
-            onClose={() => setShowAssign(false)}
-            onSubmitted={(message) => { setShowAssign(false); setFlash(message); setTimeout(() => setFlash(null), 2500); }}
-          />
-        ) : kind !== "dashboard" && kind !== "widget" && kind !== "dataset" && kind !== "report" ? (
-          <div className="mb-6 mt-1 flex justify-center">
-            <button
-              onClick={() => setShowAssign(true)}
-              className="inline-flex items-center gap-2 rounded-[14px] bg-primary px-7 py-3.5 text-white shadow-lg shadow-primary/25 transition-all hover:opacity-90 hover:shadow-primary/35"
-              style={{ fontSize: "15px", fontWeight: 700 }}
-            >
-              <Plus className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} /> Add {TASK_NOUN[kind]}
-            </button>
-          </div>
-        ) : null}
-
         {kind === "dashboard" ? (
           <DashboardsListView
             onOpen={(row) => openPreview(dashboardRowToTask(row))}
-            onCreate={() => setShowAssign(true)}
+            onCreate={() => { resetStudio(); setView("studio"); }}
             onFlash={(message) => { setFlash(message); setTimeout(() => setFlash(null), 2500); }}
           />
         ) : kind === "widget" ? (
           <WidgetsListView
             onOpen={(row) => openPreview(widgetRowToTask(row))}
-            onCreate={() => setShowAssign(true)}
+            onCreate={() => { resetStudio(); setView("studio"); }}
             onFlash={(message) => { setFlash(message); setTimeout(() => setFlash(null), 2500); }}
           />
         ) : kind === "dataset" ? (
           <DatasetsListView
             onOpen={(row) => openPreview(datasetRowToTask(row))}
-            onCreate={() => setShowAssign(true)}
+            onCreate={() => { resetStudio(); setView("studio"); }}
             onFlash={(message) => { setFlash(message); setTimeout(() => setFlash(null), 2500); }}
           />
         ) : kind === "report" ? (
           <ReportsListView
             onOpen={(row) => openPreview(reportRowToTask(row))}
-            onCreate={() => setShowAssign(true)}
+            onCreate={() => { resetStudio(); setView("studio"); }}
             onFlash={(message) => { setFlash(message); setTimeout(() => setFlash(null), 2500); }}
           />
         ) : (
