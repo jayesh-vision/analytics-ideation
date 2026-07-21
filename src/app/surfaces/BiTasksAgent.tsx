@@ -8,6 +8,7 @@ import {
 import { AgentDocPanel } from "../shell/AgentDocs";
 import { useCurrentUser } from "../shell/CurrentUser";
 import applicationCatalog from "../data/applicationCatalog.json";
+import { searchWidgets, searchDatasets, searchDashboards, type WidgetMatch, type DatasetMatch, type DashboardMatch } from "../data/platformKnowledge";
 
 export type BiTaskKind = "dataset" | "widget" | "dashboard" | "report";
 
@@ -114,6 +115,15 @@ const APP_TO_PACKAGE: Record<string, { packageName: string; moduleName: string }
   "Inventory": { packageName: "ANALYTICS", moduleName: "Operations analytics" },
   "SCM": { packageName: "ANALYTICS", moduleName: "Vendor management" },
   "ITSM": { packageName: "ANALYTICS", moduleName: "Operations analytics" },
+};
+
+// Same idea, keyed by platformKnowledge.json's dashboard key — for AI-created
+// rows built from a real-platform match rather than the mock catalog cascade.
+const REAL_DASHBOARD_TO_PACKAGE: Record<string, { packageName: string; moduleName: string }> = {
+  "incident-management": { packageName: "ITSM", moduleName: "Network operations" },
+  "problem-management": { packageName: "ITSM", moduleName: "Service desk" },
+  "procurement": { packageName: "SCM", moduleName: "Procurement analytics" },
+  "site-dashboard": { packageName: "FIBERNEO", moduleName: "Network operations" },
 };
 
 const MODULE_OPTIONS = ["All modules", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Vendor management", "Executive reporting", "FinOps"];
@@ -340,7 +350,20 @@ function DashboardsListView({ onOpen, onCreate, onFlash }: { onOpen: (row: Dashb
 // ── Widgets list — Widget Builder's navigation screen, same NST Layer 2
 // treatment as the Dashboards list above, with "Schedule" swapped for "Type"
 // (a widget's own build shape) since widgets don't carry their own schedule. ──
-type WidgetType = "KPI tile" | "Bar chart" | "Line chart" | "Table";
+// The 4 original mock types plus the real chart-type vocabulary seen in the
+// user's platform exports (see platformKnowledge.ts) — kept as the label
+// shown to the user, while widgetRenderBucket() below maps each to whichever
+// of the 4 chart primitives we actually have a renderer for.
+type WidgetType = "KPI tile" | "Bar chart" | "Line chart" | "Table" | "Donut chart" | "Pie chart" | "Area chart" | "Heatmap" | "Custom table" | "Report table";
+
+function widgetRenderBucket(t: WidgetType): "kpi" | "bar" | "line" | "table" {
+  switch (t) {
+    case "KPI tile": return "kpi";
+    case "Bar chart": case "Donut chart": case "Pie chart": case "Heatmap": return "bar";
+    case "Line chart": case "Area chart": return "line";
+    default: return "table"; // Table, Custom table, Report table
+  }
+}
 interface WidgetRow {
   id: string; status: DashboardStatus; name: string; displayName: string;
   packageName: string; moduleName: string; accessLevel: "Private" | "Public";
@@ -1617,19 +1640,20 @@ function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExpla
           )}
         </div>
 
-        {/* Centerpiece — the widget itself, rendered per its own type */}
+        {/* Centerpiece — the widget itself, rendered per its render bucket
+            (several real chart types share a renderer — see widgetRenderBucket) */}
         <ChartCard title="Live preview" subtitle={`${widgetType} · bound to ${datasetName}`}>
-          {widgetType === "KPI tile" && (
+          {widgetRenderBucket(widgetType) === "kpi" && (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <div className="vw-card-metric-xxxl">{kpiValue}</div>
               <div className={`vw-card-variance ${kpiTrend.startsWith("-") ? "is-negative" : "is-positive"}`} style={{ marginTop: 10 }}>{kpiTrend}</div>
             </div>
           )}
-          {widgetType === "Bar chart" && <SvgBarChart data={barData} height={260} />}
-          {widgetType === "Line chart" && (
+          {widgetRenderBucket(widgetType) === "bar" && <SvgBarChart data={barData} height={260} />}
+          {widgetRenderBucket(widgetType) === "line" && (
             <SvgAreaLineChart series={[{ name: title, color: "var(--vw-color-blue-500)", values: lineValues }]} labels={lineLabels} height={260} />
           )}
-          {widgetType === "Table" && <MiniDataTable cols={tableCols} rows={tableRows} />}
+          {widgetRenderBucket(widgetType) === "table" && <MiniDataTable cols={tableCols} rows={tableRows} />}
         </ChartCard>
 
         {/* Row 2 — dataset · used on dashboards · configuration */}
@@ -1699,8 +1723,8 @@ const DATASET_DETAIL_ITEMS = [
   { name: "Used by widgets", desc: "Every widget currently bound to this dataset" },
 ];
 
-function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
-  title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
+function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard, hideActions, queryOverride }: {
+  title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean; queryOverride?: string;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1764,7 +1788,7 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
         {/* Centerpiece — the governed query and its live result grid */}
         <ChartCard title="Live preview" subtitle={`Query · bound to ${sourceType}`}>
           <div style={{ overflow: "hidden", borderRadius: 10, background: "#0B1020", padding: "14px 16px", marginBottom: 14 }}>
-            <pre style={{ overflowX: "auto", color: "#93C5FD", fontSize: 12, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0 }}>{queryFor(title)}</pre>
+            <pre style={{ overflowX: "auto", color: "#93C5FD", fontSize: 12, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0, whiteSpace: "pre-wrap" }}>{queryOverride ?? queryFor(title)}</pre>
           </div>
           <MiniDataTable cols={tableCols} rows={tableRows} />
         </ChartCard>
@@ -2293,6 +2317,15 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
   const [studioSeed, setStudioSeed] = useState(0);
   const [studioTitle, setStudioTitle] = useState("");
   const [studioExpanded, setStudioExpanded] = useState(false);
+  // Real-platform match state (see ../data/platformKnowledge.ts) — when the
+  // user's ask matches something that already exists on the real platform,
+  // we use its real definition instead of the generic mock-catalog cascade.
+  const [studioMatchedWidget, setStudioMatchedWidget] = useState<WidgetMatch | null>(null);
+  const [studioMatchedDataset, setStudioMatchedDataset] = useState<DatasetMatch | null>(null);
+  const [studioMatchedDashboard, setStudioMatchedDashboard] = useState<DashboardMatch | null>(null);
+  const [studioDashboardWidgetSelection, setStudioDashboardWidgetSelection] = useState<string[]>([]);
+  const [studioRunnerUp, setStudioRunnerUp] = useState<string | null>(null);
+  const [studioManualOverride, setStudioManualOverride] = useState(false);
   const initialPromptConsumed = useRef(false);
 
   const STUDIO_STEPS: Record<BiTaskKind, string[]> = {
@@ -2353,14 +2386,59 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
   const chooseStudioApplication = (value: string) => { setStudioApplication(value || null); setStudioDatasource(null); setStudioDataset(null); };
   const chooseStudioDatasource = (value: string) => { setStudioDatasource(value || null); setStudioDataset(null); };
   const toggleReportDashboard = (name: string) => setStudioReportDashboards((cur) => (cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]));
+  const toggleDashboardWidget = (name: string) => setStudioDashboardWidgetSelection((cur) => (cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]));
   const studioSelectedApplication = APPLICATION_CATALOG.applications.find((a) => a.name === studioApplication);
   const studioDatasourceOptions = studioSelectedApplication?.datasources ?? [];
   const studioSelectedDatasource = studioDatasourceOptions.find((d) => d.name === studioDatasource);
   const studioDatasetOptions = studioSelectedDatasource?.datasets ?? [];
+
+  const hasWidgetMatch = kind === "widget" && !!studioMatchedWidget && !studioManualOverride;
+  const hasDatasetMatch = kind === "dataset" && !!studioMatchedDataset && !studioManualOverride;
+  const hasDashboardMatch = kind === "dashboard" && !!studioMatchedDashboard && !studioManualOverride;
+
+  // A matched real dataset doesn't carry an app/datasource pair from our mock
+  // catalog, so its "source" label falls back to the real dashboard's own
+  // (safe, credential-stripped) datasource name, then its application name.
+  const studioDatasetSourceLabel = hasDatasetMatch && studioMatchedDataset
+    ? (studioMatchedDataset.dashboard.datasources[0]?.name ?? studioMatchedDataset.dataset.applicationName ?? "—")
+    : (studioDatasource ?? "—");
+
   const canGenerate =
     kind === "report" ? studioReportDashboards.length > 0 && !!studioReportFrequency
+    : hasWidgetMatch ? true
+    : hasDatasetMatch ? true
+    : hasDashboardMatch ? studioDashboardWidgetSelection.length > 0
     : kind === "widget" ? !!studioApplication && !!studioDatasource && !!studioDataset
-    : !!studioApplication && !!studioDatasource; // dashboard, dataset
+    : !!studioApplication && !!studioDatasource; // dashboard, dataset (manual)
+
+  const useManualSearch = () => {
+    setStudioManualOverride(true);
+    setStudioMatchedWidget(null); setStudioMatchedDataset(null); setStudioMatchedDashboard(null);
+    setStudioApplication(null); setStudioDatasource(null); setStudioDataset(null);
+  };
+
+  const genericCatalogExtractReply = (text: string): string => {
+    const found = extractCatalog(text);
+    const nextApp = found.application ?? studioApplication;
+    const nextDs = found.application ? found.datasource : studioDatasource;
+    const nextDset = found.application ? found.dataset : studioDataset;
+    setStudioApplication(nextApp);
+    setStudioDatasource(nextDs);
+    setStudioDataset(nextDset);
+    if (kind === "widget") {
+      const wt = inferWidgetType(text);
+      if (wt) setStudioWidgetType(wt);
+    }
+    const needsDataset = kind === "widget";
+    if (nextApp && nextDs && (!needsDataset || nextDset)) {
+      return `Got it — I'll use ${nextApp} → ${nextDs}${nextDset ? ` → ${nextDset}` : ""}. Review the details on the right and click Generate when you're ready.`;
+    } else if (nextApp && nextDs) {
+      return `Thanks — I'll use ${nextApp} → ${nextDs}. Pick a dataset on the right to continue.`;
+    } else if (nextApp) {
+      return `Thanks — I'll use ${nextApp}. I couldn't tell which datasource from that, so pick one on the right.`;
+    }
+    return "Got it — I couldn't find a specific application in that, so please choose the details on the right.";
+  };
 
   const sendStudioMessage = (raw?: string) => {
     const text = (raw ?? studioInput).trim();
@@ -2385,28 +2463,31 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
         } else {
           reply = "Got it — I couldn't find a specific dashboard or cadence in that, so please pick the source dashboards and frequency on the right.";
         }
+      } else if (kind === "widget" && !studioManualOverride && searchWidgets(text).length > 0) {
+        const matches = searchWidgets(text);
+        const top = matches[0];
+        setStudioMatchedWidget(top);
+        setStudioMatchedDataset(null); setStudioMatchedDashboard(null);
+        setStudioWidgetType(top.widget.chartTypeLabel as WidgetType);
+        setStudioDataset(top.widget.datasetName);
+        const runnerUp = matches[1] && matches[1].score >= 50 ? matches[1].widget.name : null;
+        setStudioRunnerUp(runnerUp);
+        reply = `Found it — "${top.widget.name}" is a ${top.widget.chartTypeLabel.toLowerCase()} widget bound to ${top.widget.datasetName} in your ${top.dashboard.name}.${runnerUp ? ` I also found "${runnerUp}" — let me know if you meant that one instead.` : ""} Review it on the right and click Generate when you're ready.`;
+      } else if (kind === "dataset" && !studioManualOverride && searchDatasets(text).length > 0) {
+        const matches = searchDatasets(text);
+        const top = matches[0];
+        setStudioMatchedDataset(top);
+        setStudioMatchedWidget(null); setStudioMatchedDashboard(null);
+        reply = `Found it — "${top.dataset.name}" already exists in your ${top.dashboard.name}. Review the governed query on the right and click Generate when you're ready.`;
+      } else if (kind === "dashboard" && !studioManualOverride && searchDashboards(text).length > 0) {
+        const matches = searchDashboards(text);
+        const top = matches[0];
+        setStudioMatchedDashboard(top);
+        setStudioMatchedWidget(null); setStudioMatchedDataset(null);
+        setStudioDashboardWidgetSelection(top.dashboard.widgets.map((w) => w.name));
+        reply = `Found it — you have a "${top.dashboard.name}" on your platform with ${top.dashboard.widgets.length} widgets. I've pre-selected all of them on the right — uncheck any you don't want, then click Generate.`;
       } else {
-        const found = extractCatalog(text);
-        const nextApp = found.application ?? studioApplication;
-        const nextDs = found.application ? found.datasource : studioDatasource;
-        const nextDset = found.application ? found.dataset : studioDataset;
-        setStudioApplication(nextApp);
-        setStudioDatasource(nextDs);
-        setStudioDataset(nextDset);
-        if (kind === "widget") {
-          const wt = inferWidgetType(text);
-          if (wt) setStudioWidgetType(wt);
-        }
-        const needsDataset = kind === "widget";
-        if (nextApp && nextDs && (!needsDataset || nextDset)) {
-          reply = `Got it — I'll use ${nextApp} → ${nextDs}${nextDset ? ` → ${nextDset}` : ""}. Review the details on the right and click Generate when you're ready.`;
-        } else if (nextApp && nextDs) {
-          reply = `Thanks — I'll use ${nextApp} → ${nextDs}. Pick a dataset on the right to continue.`;
-        } else if (nextApp) {
-          reply = `Thanks — I'll use ${nextApp}. I couldn't tell which datasource from that, so pick one on the right.`;
-        } else {
-          reply = "Got it — I couldn't find a specific application in that, so please choose the details on the right.";
-        }
+        reply = genericCatalogExtractReply(text);
       }
       setStudioThinking(false);
       setStudioMessages((m) => [...m, { role: "agent", text: reply }]);
@@ -2428,10 +2509,16 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
         title = studioReportDashboards.length === 1
           ? `${studioReportDashboards[0]} report`
           : `${studioReportFrequency} report (${studioReportDashboards.length} dashboards)`;
+      } else if (hasWidgetMatch && studioMatchedWidget) {
+        title = studioMatchedWidget.widget.name;
       } else if (kind === "widget") {
         title = `${studioDataset} widget`;
+      } else if (hasDatasetMatch && studioMatchedDataset) {
+        title = studioMatchedDataset.dataset.name;
       } else if (kind === "dataset") {
         title = `${studioDatasource} dataset`;
+      } else if (hasDashboardMatch && studioMatchedDashboard) {
+        title = studioMatchedDashboard.dashboard.name;
       } else {
         title = studioDataset ? `${studioDataset} dashboard` : studioDatasource ? `${studioDatasource} dashboard` : "New AI dashboard";
       }
@@ -2444,7 +2531,13 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
 
   const handleSaveDraft = () => {
     const id = `ai-${Date.now()}`;
-    const mapping = APP_TO_PACKAGE[studioApplication ?? ""] ?? { packageName: "ANALYTICS", moduleName: "Operations analytics" };
+    const realDashboardKey = hasWidgetMatch ? studioMatchedWidget?.dashboard.key
+      : hasDatasetMatch ? studioMatchedDataset?.dashboard.key
+      : hasDashboardMatch ? studioMatchedDashboard?.dashboard.key
+      : undefined;
+    const mapping = (realDashboardKey && REAL_DASHBOARD_TO_PACKAGE[realDashboardKey])
+      ?? APP_TO_PACKAGE[studioApplication ?? ""]
+      ?? { packageName: "ANALYTICS", moduleName: "Operations analytics" };
     if (kind === "dashboard") {
       DASHBOARD_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
@@ -2462,7 +2555,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
       DATASET_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
-        rowCount: pick([1240, 3860, 9120, 15400], seedFromId(id)), sourceType: studioDatasource ?? "—",
+        rowCount: pick([1240, 3860, 9120, 15400], seedFromId(id)), sourceType: studioDatasetSourceLabel,
         creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
       });
     } else {
@@ -2488,6 +2581,8 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
     setStudioMessages([studioGreeting()]); setStudioStage("gather");
     setStudioApplication(null); setStudioDatasource(null); setStudioDataset(null);
     setStudioWidgetType("Bar chart"); setStudioReportDashboards([]); setStudioReportFrequency(null);
+    setStudioMatchedWidget(null); setStudioMatchedDataset(null); setStudioMatchedDashboard(null);
+    setStudioDashboardWidgetSelection([]); setStudioRunnerUp(null); setStudioManualOverride(false);
     setStudioTitle(""); setStudioExpanded(false);
   };
 
@@ -2626,7 +2721,8 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
       if (kind === "dataset") {
         return (
           <DatasetPreview
-            title={studioTitle} approval={undefined} seed={studioSeed} sourceType={studioDatasource ?? "—"}
+            title={studioTitle} approval={undefined} seed={studioSeed} sourceType={studioDatasetSourceLabel}
+            queryOverride={hasDatasetMatch ? studioMatchedDataset?.dataset.query : undefined}
             onExplainAi={() => {}} onSubmit={() => {}} onDiscard={() => {}} hideActions
           />
         );
@@ -2762,6 +2858,55 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
                       </select>
                     </div>
                   </>
+                ) : hasWidgetMatch && studioMatchedWidget ? (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Matched from your platform</span>
+                    </div>
+                    <div className="space-y-2" style={{ fontSize: "12.5px" }}>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Widget</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedWidget.widget.name}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Type</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedWidget.widget.chartTypeLabel}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Dataset</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedWidget.widget.datasetName}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Source dashboard</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedWidget.dashboard.name}</span></div>
+                    </div>
+                    {studioRunnerUp && (
+                      <p className="mt-3 text-muted-foreground" style={{ fontSize: "11.5px" }}>Also found "{studioRunnerUp}" — mention it if you meant that one instead.</p>
+                    )}
+                    <button onClick={useManualSearch} className="mt-3 text-primary hover:underline" style={{ fontSize: "12px", fontWeight: 600 }}>Not what you meant? Search manually instead</button>
+                  </div>
+                ) : hasDatasetMatch && studioMatchedDataset ? (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Matched from your platform</span>
+                    </div>
+                    <div className="space-y-2" style={{ fontSize: "12.5px" }}>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Dataset</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedDataset.dataset.name}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Source</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioDatasetSourceLabel}</span></div>
+                      <div className="flex justify-between gap-3"><span className="text-muted-foreground">Source dashboard</span><span className="text-foreground" style={{ fontWeight: 600 }}>{studioMatchedDataset.dashboard.name}</span></div>
+                    </div>
+                    <button onClick={useManualSearch} className="mt-3 text-primary hover:underline" style={{ fontSize: "12px", fontWeight: 600 }}>Not what you meant? Search manually instead</button>
+                  </div>
+                ) : hasDashboardMatch && studioMatchedDashboard ? (
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Matched "{studioMatchedDashboard.dashboard.name}" — which widgets should it include?</span>
+                    </div>
+                    <div className="max-h-[260px] space-y-1 overflow-y-auto rounded-[10px] border border-border p-2">
+                      {studioMatchedDashboard.dashboard.widgets.map((w) => (
+                        <label key={w.name} className="flex cursor-pointer items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 hover:bg-muted/40">
+                          <span className="flex items-center gap-2">
+                            <input type="checkbox" checked={studioDashboardWidgetSelection.includes(w.name)} onChange={() => toggleDashboardWidget(w.name)} />
+                            <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 500 }}>{w.name}</span>
+                          </span>
+                          <span className="text-muted-foreground" style={{ fontSize: "11px" }}>{w.chartTypeLabel}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <button onClick={useManualSearch} className="mt-3 text-primary hover:underline" style={{ fontSize: "12px", fontWeight: 600 }}>Not what you meant? Search manually instead</button>
+                  </div>
                 ) : (
                   <div className={`grid gap-4 ${kind === "widget" ? "md:grid-cols-4" : kind === "dataset" ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
                     <div>
@@ -2791,7 +2936,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
                       <div>
                         <FieldLabel label="Widget type" />
                         <select value={studioWidgetType} onChange={(e) => setStudioWidgetType(e.target.value as WidgetType)} className="w-full rounded-[10px] border border-border bg-card px-3 py-2.5 text-foreground outline-none" style={{ fontSize: "13px", fontWeight: 600 }}>
-                          {(["KPI tile", "Bar chart", "Line chart", "Table"] as WidgetType[]).map((w) => <option key={w} value={w}>{w}</option>)}
+                          {(["KPI tile", "Bar chart", "Line chart", "Table", "Donut chart", "Pie chart", "Area chart", "Heatmap", "Custom table", "Report table"] as WidgetType[]).map((w) => <option key={w} value={w}>{w}</option>)}
                         </select>
                       </div>
                     )}

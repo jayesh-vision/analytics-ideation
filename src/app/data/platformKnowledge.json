@@ -1,0 +1,830 @@
+{
+  "dashboards": [
+    {
+      "key": "incident-management",
+      "name": "Incident Management Dashboard",
+      "title": "Incident management dashboard",
+      "description": "Monitors key incident management metrics, including incident status, severity, category, SLA performance, and resolution efficiency, through interactive visualizations.",
+      "module": "ITSM_V1.0.0",
+      "datasources": [
+        {
+          "name": "ITSM Datasource External",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME"
+        }
+      ],
+      "widgets": [
+        {
+          "name": "Open incident",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Open Incident Dataset"
+        },
+        {
+          "name": "Critical",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Critical Incident Dataset"
+        },
+        {
+          "name": "SLA complience",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "added",
+          "datasetName": "SLA Complience Dataset"
+        },
+        {
+          "name": "Avg resolution time",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Avg Inc Resolution Dataset"
+        },
+        {
+          "name": "Incident by priority",
+          "chartType": "donut",
+          "chartTypeLabel": "Donut chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Total ITSM Incident By Priority "
+        },
+        {
+          "name": "Incident by category",
+          "chartType": "column",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM Incident By Category"
+        },
+        {
+          "name": "ITSM SLA Breached Dataset",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM SLA Breached Dataset"
+        },
+        {
+          "name": "New Incident Count",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM New Incident Dataset "
+        },
+        {
+          "name": "Incident severity distribution",
+          "chartType": "pie",
+          "chartTypeLabel": "Pie chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM Incident Severity Count Dataset"
+        },
+        {
+          "name": "Status overview",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM Incident Status Count Dataset "
+        },
+        {
+          "name": "Incident age distribution",
+          "chartType": "column",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "ITSM Inciden Ageing Dataset"
+        }
+      ],
+      "datasets": [
+        {
+          "name": "ITSM Incident By Category",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT it.NAME AS INCIDENT_TYPE, COUNT(i.ID) AS INCIDENT_COUNT FROM INCIDENT i JOIN INCIDENT_TYPE it ON i.TYPE_FK = it.ID WHERE i.DELETED = 0 AND it.DELETED = 0 GROUP BY it.ID, it.NAME ORDER BY INCIDENT_COUNT DESC LIMIT 10"
+        },
+        {
+          "name": "Open Incident Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT \n  total_open AS column1, \n  CASE \n    WHEN prev30_open = 0 THEN 0 \n    ELSE ROUND(((last30_open - prev30_open) / prev30_open) * 100, 2) \n  END AS percentage_change_last_30_days \nFROM (\n  SELECT \n    SUM(CASE \n        WHEN STATUS IN ('NEW', 'IN_PROGRESS') \n        THEN 1 ELSE 0 \n    END) AS total_open,\n\n    SUM(CASE \n        WHEN STATUS IN ('NEW', 'IN_PROGRESS') \n        AND CREATED_TIME >= CURDATE() - INTERVAL 30 DAY \n        THEN 1 ELSE 0 \n    END) AS last30_open,\n\n    SUM(CASE \n        WHEN STATUS IN ('NEW', 'IN_PROGRESS') \n        AND CREATED_TIME >= CURDATE() - INTERVAL 60 DAY \n   "
+        },
+        {
+          "name": "ITSM SLA Breached Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT cur.breach_count AS breach_last30_days, CASE WHEN prev.total_incidents = 0 THEN 0 ELSE ROUND(((cur.breach_count / cur.total_incidents) - (prev.breach_count / prev.total_incidents)) * 100, 2) END AS breach_pct_change_last30 FROM (SELECT COUNT(*) AS total_incidents, (COUNT(*) - SUM(CASE WHEN i.STATUS IN ('RESOLVED', 'CLOSED') AND i.RESOLVE_TIME IS NOT NULL AND ((ts.NAME = 'Low' AND TIMESTAMPDIFF(MINUTE, i.CREATED_TIME, i.RESOLVE_TIME) <= 2160) OR (ts.NAME = 'Medium' AND TIMESTAMPDIFF(MINUTE, i.CREATED_TIME, i.RESOLVE_TIME) <= 1440) OR (ts.NAME = 'High' AND TIMESTAMPDIFF(MINUTE, i.CREATED_"
+        },
+        {
+          "name": "ITSM New Incident Dataset ",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT SUM(CASE WHEN CREATED_TIME >= NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) AS new_t24h, COALESCE(ROUND((SUM(CASE WHEN CREATED_TIME >= NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END) - SUM(CASE WHEN CREATED_TIME >= NOW() - INTERVAL 48 HOUR AND CREATED_TIME < NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END)) / NULLIF(SUM(CASE WHEN CREATED_TIME >= NOW() - INTERVAL 48 HOUR AND CREATED_TIME < NOW() - INTERVAL 24 HOUR THEN 1 ELSE 0 END), 0) * 100, 0), 0) AS percent_vs_p24h FROM INCIDENT WHERE DELETED = 0"
+        },
+        {
+          "name": "ITSM Inciden Ageing Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT '0\u20134h' AS AGE_BUCKET, COUNT(*) AS INCIDENT_COUNT\nFROM INCIDENT\nWHERE DELETED = 0\n  AND TIMESTAMPDIFF(HOUR, CREATED_TIME, NOW()) BETWEEN 0 AND 4\n\nUNION ALL\n\nSELECT '4\u20138h' AS AGE_BUCKET, COUNT(*)\nFROM INCIDENT\nWHERE DELETED = 0\n  AND TIMESTAMPDIFF(HOUR, CREATED_TIME, NOW()) BETWEEN 5 AND 8\n\nUNION ALL\n\nSELECT '8\u201312h' AS AGE_BUCKET, COUNT(*)\nFROM INCIDENT\nWHERE DELETED = 0\n  AND TIMESTAMPDIFF(HOUR, CREATED_TIME, NOW()) BETWEEN 9 AND 12\n\nUNION ALL\n\nSELECT '>12h' AS AGE_BUCKET, COUNT(*)\nFROM INCIDENT\nWHERE DELETED = 0\n  AND TIMESTAMPDIFF(HOUR, CREATED_TIME, NOW()) > 12"
+        },
+        {
+          "name": "Critical Incident Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT COUNT(*) AS critical_incidents FROM INCIDENT i JOIN INCIDENT_SEVERITY s ON i.SEVERITY_FK = s.ID WHERE i.DELETED = 0 AND LOWER(s.NAME) = 'critical'"
+        },
+        {
+          "name": "ITSM Incident Severity Count Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT s.NAME AS SEVERITY, COUNT(i.ID) AS INCIDENT_COUNT FROM INCIDENT_SEVERITY s LEFT JOIN INCIDENT i ON i.SEVERITY_FK = s.ID AND i.DELETED = 0 GROUP BY s.NAME ORDER BY s.ORDER_INDEX;"
+        },
+        {
+          "name": "ITSM Incident Status Count Dataset ",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT STATUS AS column1, COUNT(*) AS column2 FROM INCIDENT WHERE DELETED = 0 GROUP BY STATUS ORDER BY COUNT(*) DESC"
+        },
+        {
+          "name": "Avg Inc Resolution Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT ROUND(avg_till_today, 2) AS avg_resolution_till_today, CASE WHEN prev30_avg = 0 OR prev30_avg IS NULL THEN 0 ELSE ROUND(((last30_avg - prev30_avg) / prev30_avg) * 100, 2) END AS percentage_change_last_30_days FROM (SELECT AVG(CASE WHEN i.DELETED = 0 AND i.CREATED_TIME IS NOT NULL AND i.RESOLVE_TIME IS NOT NULL THEN TIMESTAMPDIFF(HOUR, i.CREATED_TIME, i.RESOLVE_TIME) ELSE NULL END) AS avg_till_today, AVG(CASE WHEN i.DELETED = 0 AND i.CREATED_TIME IS NOT NULL AND i.RESOLVE_TIME IS NOT NULL AND DATE(i.RESOLVE_TIME) >= CURDATE() - INTERVAL 30 DAY THEN TIMESTAMPDIFF(HOUR, i.CREATED_TIME, i.R"
+        },
+        {
+          "name": "SLA Complience Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT ROUND((cur.ontime_resolved / cur.total_incidents) * 100, 2) AS sla_compliance_last30_days, CASE WHEN prev.total_incidents = 0 THEN 0 ELSE ROUND(((cur.ontime_resolved / cur.total_incidents) - (prev.ontime_resolved / prev.total_incidents)) * 100, 2) END AS sla_compliance_pct_change_last30 FROM (SELECT COUNT(*) AS total_incidents, SUM(CASE WHEN i.STATUS IN ('RESOLVED', 'CLOSED') AND i.RESOLVE_TIME IS NOT NULL AND ((ts.NAME = 'Low' AND TIMESTAMPDIFF(MINUTE, i.CREATED_TIME, i.RESOLVE_TIME) <= 2160) OR (ts.NAME = 'Medium' AND TIMESTAMPDIFF(MINUTE, i.CREATED_TIME, i.RESOLVE_TIME) <= 1440) OR ("
+        },
+        {
+          "name": "Total ITSM Incident By Priority ",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT \n  ip.NAME AS PRIORITY, \n  COUNT(i.ID) AS INCIDENT_COUNT \nFROM INCIDENT_PRIORITY ip \nLEFT JOIN INCIDENT i \n  ON i.PRIORITY_FK = ip.ID \n  AND i.DELETED = 0\nWHERE ip.DELETED = 0 \nGROUP BY ip.NAME \nORDER BY ip.ORDER_INDEX;"
+        }
+      ]
+    },
+    {
+      "key": "problem-management",
+      "name": "Problem management dashboard",
+      "title": "Problem management dashboard",
+      "description": "Provides an overview of problem management metrics, including problem status, priority, trends, and resolution progress.",
+      "module": "visionwaves-1.0",
+      "datasources": [
+        {
+          "name": "ITSM Datasource External",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME"
+        },
+        {
+          "name": "itsm_datasource",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME"
+        },
+        {
+          "name": "ITSM Datasource External",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME"
+        }
+      ],
+      "widgets": [
+        {
+          "name": "Problems by Incident Volume (Top 10)",
+          "chartType": "custom_table",
+          "chartTypeLabel": "Custom table",
+          "widgetType": "TABLE",
+          "description": "",
+          "datasetName": "Problem Top Incident Dataset"
+        },
+        {
+          "name": "Open problems",
+          "chartType": "custom_table",
+          "chartTypeLabel": "Custom table",
+          "widgetType": "TABLE",
+          "description": "",
+          "datasetName": "Problem open dataset"
+        },
+        {
+          "name": "Top impacted services",
+          "chartType": "heatmap",
+          "chartTypeLabel": "Heatmap",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Problem impacted service dataset"
+        },
+        {
+          "name": "Problem investigation card",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "problem mgmt investigation dataset"
+        },
+        {
+          "name": "IdentifiedProblemChart",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "problem_minicard_dataset"
+        },
+        {
+          "name": "Problem mgmt pending card",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": " Problem mgmt pending dataset Linechart"
+        },
+        {
+          "name": "Aging",
+          "chartType": "bar",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Open Problems Aging"
+        },
+        {
+          "name": "Problem by severity",
+          "chartType": "donut",
+          "chartTypeLabel": "Donut chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Problem Severity Count Dataset"
+        },
+        {
+          "name": "Problem category",
+          "chartType": "column",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Problem Category Count Dataset"
+        },
+        {
+          "name": "Problem mgmt resolved count",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "problem mgmt query dataset"
+        }
+      ],
+      "datasets": [
+        {
+          "name": "Problem impacted service dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME",
+          "query": "SELECT \n  ad.APP_NAME AS APPLICATION_NAME,\n  CONCAT(UPPER(LEFT(pd.IMPACT,1)), LOWER(SUBSTRING(pd.IMPACT,2))) AS Impact,\n  COUNT(*) AS count\nFROM PROBLEM_DETAILS pd\nJOIN PROBLEM_APPLICATION_LINK psl ON pd.ID=psl.PROBLEM_ID\nJOIN BUSINESS_SERVICE ad ON psl.BUSINESS_SERVICE_ID=ad.ID\nWHERE pd.IS_DELETED=0 \nAND ad.APP_NAME IN (\n  SELECT APP_NAME FROM (\n    SELECT ad2.APP_NAME \n    FROM PROBLEM_DETAILS pd2\n    JOIN PROBLEM_APPLICATION_LINK psl2 ON pd2.ID=psl2.PROBLEM_ID\n    JOIN BUSINESS_SERVICE ad2 ON psl2.BUSINESS_SERVICE_ID=ad2.ID\n    WHERE pd2.IS_DELETED=0 \n    GROUP BY ad2.APP_NAME \n    ORDER BY"
+        },
+        {
+          "name": "Open Problems Aging",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "WITH aging_cycles AS (SELECT '0-7 days' AS aging_cycle UNION ALL SELECT '7-15 days' UNION ALL SELECT '15-30 days' UNION ALL SELECT '30+ days') SELECT ac.aging_cycle AS Ageing, COALESCE(pd.problem_count, 0) AS problem_count FROM aging_cycles ac LEFT JOIN (SELECT CASE WHEN DATE_REPORTED IS NULL THEN NULL WHEN DATEDIFF(CURDATE(), DATE_REPORTED) BETWEEN 0 AND 7 THEN '0-7 days' WHEN DATEDIFF(CURDATE(), DATE_REPORTED) BETWEEN 8 AND 15 THEN '7-15 days' WHEN DATEDIFF(CURDATE(), DATE_REPORTED) BETWEEN 16 AND 30 THEN '15-30 days' ELSE '30+ days' END AS aging_cycle, COUNT(*) AS problem_count FROM PROBLEM"
+        },
+        {
+          "name": "Problem Top Incident Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT pd.ID AS id, pd.TITLE AS ProblemName, COUNT(pil.INCIDENT_ID) AS IncidentCount, pd.WORKFLOW_STAGE AS Status, pd.DATE_REPORTED AS ReportedDate, pd.SEVERITY AS Severity FROM PROBLEM_DETAILS pd LEFT JOIN PROBLEM_INCIDENT_LINK pil ON pd.ID = pil.PROBLEM_ID WHERE pd.IS_DELETED = 0 AND pd.WORKFLOW_STAGE IN ('New', 'Assigned', 'Reassigned') AND pd.CUSTOMER_ID = 1 GROUP BY pd.ID ORDER BY IncidentCount DESC LIMIT 10"
+        },
+        {
+          "name": "problem mgmt investigation dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME",
+          "query": "SELECT t.total_count AS total_count, ROUND(CASE WHEN t.prev_count = 0 THEN 0 ELSE ((t.cur_count - t.prev_count) * 100.0 / t.prev_count) END, 2) AS percentage_change FROM (SELECT COUNT(*) AS total_count, SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS cur_count, SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_REPORTED < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS prev_count FROM PROBLEM_DETAILS WHERE WORKFLOW_STAGE IN ('Assigned', 'Reassigned', 'Reopened', 'Reviewed') AND IS_DELETED = 0) t"
+        },
+        {
+          "name": " Problem mgmt pending dataset Linechart",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT t.total_count AS total_count, ROUND(CASE WHEN t.prev_count = 0 THEN 0 ELSE ((t.cur_count - t.prev_count) * 100.0 / t.prev_count) END, 2) AS percentage_change FROM (SELECT COUNT(*) AS total_count, SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS cur_count, SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_REPORTED < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS prev_count FROM PROBLEM_DETAILS WHERE WORKFLOW_STAGE = 'New' AND IS_DELETED = 0) t"
+        },
+        {
+          "name": "Problem Category Count Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT c.NAME AS Category, COUNT(1) AS Count FROM PROBLEM_DETAILS pd INNER JOIN PROBLEM_CATEGORY c ON pd.PROBLEM_CATEGORY_ID = c.ID WHERE pd.IS_DELETED = 0 AND c.IS_DELETED = 0 GROUP BY c.NAME ORDER BY Count DESC LIMIT 10"
+        },
+        {
+          "name": "Problem open dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIELD-FORCE-MGMT_APP_NAME",
+          "query": "SELECT ID AS id, TITLE AS ProblemName, WORKFLOW_STAGE AS Status, SEVERITY AS Severity, DATE_REPORTED AS reportedDate FROM PROBLEM_DETAILS WHERE WORKFLOW_STAGE IN ('New', 'Assigned', 'Reassigned', 'Reviewed', 'Assign', 'Reopened') AND IS_DELETED = 0"
+        },
+        {
+          "name": "Problem Severity Count Dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME",
+          "query": "SELECT SEVERITY AS Severity, COUNT(1) AS Count FROM PROBLEM_DETAILS WHERE IS_DELETED = 0 GROUP BY SEVERITY ORDER BY CASE WHEN SEVERITY = 'CRITICAL' THEN 1 WHEN SEVERITY = 'HIGH' THEN 2 WHEN SEVERITY = 'MEDIUM' THEN 3 WHEN SEVERITY = 'LOW' THEN 4 ELSE 5 END;"
+        },
+        {
+          "name": "problem_minicard_dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME",
+          "query": "SELECT COUNT(*) AS last_12_month_count, ROUND((SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) - SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_REPORTED < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END)) / NULLIF(SUM(CASE WHEN DATE_REPORTED >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_REPORTED < DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END), 0) * 100, 2) AS percentage_change FROM PROBLEM_DETAILS WHERE IS_DELETED = 0 AND CUSTOMER_ID = 1"
+        },
+        {
+          "name": "problem mgmt query dataset",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "PROBLEM_MANAGEMENT_APP_NAME",
+          "query": "SELECT t.total_resolved_till_date AS total_resolved_till_date, CAST(ROUND(CASE WHEN t.previous_30_days_count = 0 THEN 0 ELSE ((t.last_30_days_count - t.previous_30_days_count) * 100.0 / t.previous_30_days_count) END, 0) AS SIGNED) AS percentage_change FROM (SELECT SUM(CASE WHEN WORKFLOW_STAGE IN ('Solved', 'Resolved') AND IS_DELETED = 0 THEN 1 ELSE 0 END) AS total_resolved_till_date, SUM(CASE WHEN WORKFLOW_STAGE IN ('Solved', 'Resolved') AND IS_DELETED = 0 AND DATE_RESOLVED >= DATE_ADD(NOW(), INTERVAL -30 DAY) THEN 1 ELSE 0 END) AS last_30_days_count, SUM(CASE WHEN WORKFLOW_STAGE IN ('Solved',"
+        }
+      ]
+    },
+    {
+      "key": "procurement",
+      "name": "Procurement dashboard_511",
+      "title": "Procurement dashboard new",
+      "description": "Dashboard providing key procurement metrics and insights",
+      "module": "SCM_V1.0",
+      "datasources": [
+        {
+          "name": "SCM Dev",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "LOGISTICS_APP_NAME"
+        }
+      ],
+      "widgets": [
+        {
+          "name": "Unapproved PR ageing",
+          "chartType": "donut",
+          "chartTypeLabel": "Donut chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Unapporoved pr Procurement dashboard"
+        },
+        {
+          "name": "Purchase trend",
+          "chartType": "area",
+          "chartTypeLabel": "Area chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Purchase order trend procurement dashaboard"
+        },
+        {
+          "name": "Orders by warehouses",
+          "chartType": "column",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Orders by warehouse procurement dashboard"
+        },
+        {
+          "name": "Top vendors",
+          "chartType": "bar",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Top vendor by po procurement dashboard"
+        },
+        {
+          "name": "Demand by PR",
+          "chartType": "bar",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Demand by pr procurement dashboard"
+        },
+        {
+          "name": "Purchases",
+          "chartType": "donut",
+          "chartTypeLabel": "Donut chart",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Purchase by type and category procurement"
+        },
+        {
+          "name": "Subheading footer",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Reorder level trends fiberneo materials"
+        },
+        {
+          "name": "Active RFQs",
+          "chartType": "custom_table",
+          "chartTypeLabel": "Custom table",
+          "widgetType": "TABLE",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Active RFQS procurement dashboard"
+        },
+        {
+          "name": "Po issued with pending delivery",
+          "chartType": "custom_table",
+          "chartTypeLabel": "Custom table",
+          "widgetType": "TABLE",
+          "description": "Provides a visual and tabular representation of relevant data to support monitoring, analysis, and decision-making.",
+          "datasetName": "Po issued with pending deliveries procurement "
+        },
+        {
+          "name": "RFQ response rate ",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "RFQ Response rate procurement dashboard"
+        },
+        {
+          "name": "PO Issued",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Po issued procurement dashboard"
+        },
+        {
+          "name": "SCM RFx saving archived",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "SCM RFx saving achieved and mom percentage"
+        },
+        {
+          "name": "Total purchases",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Purchase Total and Mom amount procurement"
+        }
+      ],
+      "datasets": [
+        {
+          "name": "RFQ Response rate procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT (SELECT ROUND(SUM(DISTINCT_VQ_COUNT) * 100 / SUM(DISTINCT_PRVM_COUNT), 1) AS response_rate FROM (SELECT COUNT(DISTINCT PRVM.VENDOR_ID) AS DISTINCT_PRVM_COUNT, COUNT(DISTINCT VQ.VENDOR_ID) AS DISTINCT_VQ_COUNT FROM PROCUREMENT_REQUESTS_VENDOR_MAPPING PRVM INNER JOIN PROCUREMENT_REQUESTS PR ON PR.ID = PRVM.PROCUREMENT_REQUESTS_ID INNER JOIN VENDOR_QUOTATIONS VQ ON VQ.PROCUREMENT_REQUEST_ID = PRVM.PROCUREMENT_REQUESTS_ID WHERE PR.APP_NAME = 'FIBERNEO_APP_NAME' AND PR.TYPE = 'RFQ' AND PR.IS_DELETED = FALSE GROUP BY PRVM.PROCUREMENT_REQUESTS_ID) AS subquery) AS overall_response_rate, IFNULL("
+        },
+        {
+          "name": "Purchase order trend procurement dashaboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT SUBSTRING(m1.name,1,3) AS month_name, IFNULL(q.totalCount, 0) AS total_po, IFNULL(q.expected_revenue, 0) AS expected_revenue FROM (SELECT 0 AS month, DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 11 MONTH), '%M') AS name UNION ALL SELECT 1 AS month, DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 10 MONTH), '%M') AS name UNION ALL SELECT 2 AS month, DATE_FORMAT(DATE_SUB(NOW(),INTERVAL 9 MONTH), '%M') AS name UNION ALL SELECT 3 AS month, DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 8 MONTH), '%M') AS name UNION ALL SELECT 4 AS month, DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 7 MONTH), '%M') AS name UNION ALL SELECT 5 AS"
+        },
+        {
+          "name": "SCM RFx saving achieved and mom percentage",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT IFNULL(SUM(CASE WHEN pr.ESTIMATED_AMOUNT IS NOT NULL THEN GREATEST(pr.ESTIMATED_AMOUNT - COALESCE(vq.total_net_amount, 0),0) END), 0) AS savingsArchived, IFNULL(ROUND((SUM(CASE WHEN pr.CREATED_TIME >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN pr.ESTIMATED_AMOUNT - COALESCE(vq.total_net_amount, 0) END) - SUM(CASE WHEN pr.CREATED_TIME >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01') AND pr.CREATED_TIME < DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN pr.ESTIMATED_AMOUNT - COALESCE(vq.total_net_amount, 0) END)) / NULLIF(SUM(CASE WHEN pr.CREATED_TIME >= DATE_FORMAT(DATE_SUB(CURDATE("
+        },
+        {
+          "name": "Reorder level trends fiberneo materials",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT COUNT(*) As Counts FROM MATERIAL_MASTER LIMIT 1"
+        },
+        {
+          "name": "Unapporoved pr Procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT age_ranges.ranges AS age_range, COUNT(requests.age_range) AS count FROM (SELECT 'More than 20 days' AS ranges UNION ALL SELECT '16-20 days' UNION ALL SELECT '11-15 days' UNION ALL SELECT '6-10 days' UNION ALL SELECT '0-5 days') AS age_ranges LEFT JOIN (SELECT CASE WHEN DATEDIFF(NOW(), CREATED_TIME) BETWEEN 0 AND 5 THEN '0-5 days ' WHEN DATEDIFF(NOW(), CREATED_TIME) BETWEEN 6 AND 10 THEN '6-10 days' WHEN DATEDIFF(NOW(), CREATED_TIME) BETWEEN 11 AND 15 THEN '11-15 days' WHEN DATEDIFF(NOW(), CREATED_TIME) BETWEEN 16 AND 20 THEN '16-20 days' ELSE 'More than 20 days' END AS age_range FROM PU"
+        },
+        {
+          "name": "Purchase by type and category procurement",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT \n    SUM(POD.NET_AMOUNT) AS Amount,\n    'Category' AS TYPE,\n    MAC.DISPLAY_NAME AS Names\nFROM \n    PURCHASE_ORDER PO \n    INNER JOIN PURCHASE_ORDER_DETAILS POD ON PO.ID = POD.PURCHASE_ORDER_ID \n    INNER JOIN MATERIAL_MASTER MM ON POD.MATERIAL_ID = MM.ID \n    INNER  JOIN MATERIAL_CATEGORY_MAPPING MCM ON MCM.MATERIAL_ID = MM.ID \n    INNER JOIN MATERIAL_CATEGORY MAC ON MAC.ID = MCM.MATERIAL_CATEGORY_ID  WHERE MAC.DISPLAY_NAME iS NOT NULL AND PO.MODIFIED_TIME>=DATE_SUB(NOW(),INTERVAL 12 MONTH) AND PO.APP_NAME='FIBERNEO_APP_NAME'\nGROUP BY \n    MAC.DISPLAY_NAME \n\nUNION ALL \n\nSELECT \n    SUM"
+        },
+        {
+          "name": "Po issued with pending deliveries procurement ",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT PO.TITLE AS Names, PO.SYSTEM_GENERATED_CODE AS systemGeneratedCode, SUM(POD.QUANTITY_ORDERED) AS Quantity, PO.EXPECTED_DELIVERY_DATE AS Expected_delivery_date, SUM(PO.NET_AMOUNT) AS Amount FROM PURCHASE_ORDER PO INNER JOIN PURCHASE_ORDER_DETAILS POD ON POD.PURCHASE_ORDER_ID = PO.ID WHERE PO.IS_DELETED = FALSE AND PO.MODIFIED_TIME >= DATE_SUB(NOW(), INTERVAL 12 MONTH) AND PO.ID NOT IN (SELECT PO_ID FROM SHIPMENT_PO_MAPPING WHERE PO_ID IS NOT NULL) GROUP BY PO.ID ORDER BY Amount DESC"
+        },
+        {
+          "name": "Top vendor by po procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT SUM(PO.NET_AMOUNT) AS AMOUNT, V.NAME AS VENDORS FROM PURCHASE_ORDER PO INNER JOIN BUSINESS_UNIT V ON V.ID = PO.VENDOR_ID WHERE PO.MODIFIED_TIME >= DATE_SUB(NOW(), INTERVAL 12 MONTH) AND PO.IS_DELETED = FALSE GROUP BY V.NAME ORDER BY AMOUNT DESC LIMIT 5"
+        },
+        {
+          "name": "Demand by pr procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT  PR_COUNT, TYPE, NAMES FROM ( SELECT  COUNT(DISTINCT PR.ID) AS PR_COUNT, 'Category' AS TYPE, MAC.DISPLAY_NAME AS NAMES FROM  PURCHASE_REQUEST PR  INNER JOIN PURCHASE_REQUEST_DETAILS PRD ON PRD.PURCHASE_REQUEST_ID = PR.ID  INNER JOIN MATERIAL_MASTER MM ON MM.ID = PRD.MATERIAL_ID  INNER  JOIN MATERIAL_CATEGORY_MAPPING MCM ON MCM.MATERIAL_ID = MM.ID  INNER JOIN MATERIAL_CATEGORY MAC ON MAC.ID = MCM.MATERIAL_CATEGORY_ID  WHERE MAC.DISPLAY_NAME IS NOT NULL AND PR.APP_NAME='FIBERNEO_APP_NAME' AND PR.CREATED_TIME>=DATE_SUB(NOW(),INTERVAL 12 MONTH) GROUP BY  MAC.DISPLAY_NAME  ORDER BY  PR_COUNT"
+        },
+        {
+          "name": "Orders by warehouse procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT SUM(PO.NET_AMOUNT)As amount,W.DISPLAY_NAME as Warehouses FROM PURCHASE_ORDER PO INNER JOIN WAREHOUSE W ON W.ID = PO.DELIVERY_LOCATION_ID  WHERE PO.DELIVERY_LOCATION_TYPE='WAREHOUSE'  AND PO.MODIFIED_TIME>=DATE_SUB(NOW(),INTERVAL 12 MONTH) GROUP BY W.DISPLAY_NAME"
+        },
+        {
+          "name": "Po issued procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT\n    'Total PO' AS TYPE,\n    COUNT(ID) AS Total_po\nFROM PURCHASE_ORDER\nWHERE APP_NAME = 'FIBERNEO_APP_NAME'\n  AND IS_DELETED = FALSE\n\nUNION ALL\n\nSELECT\n    'MoM PO' AS TYPE,\n    PO AS Total_po\nFROM (\n    SELECT\n        COALESCE(\n            COUNT(ID) - LAG(COUNT(ID)) OVER (ORDER BY MONTH(CREATED_TIME)),\n            0\n        ) AS PO,\n        ROW_NUMBER() OVER (ORDER BY MONTH(CREATED_TIME) DESC) AS MonthRank\n    FROM PURCHASE_ORDER\n    WHERE APP_NAME = 'FIBERNEO_APP_NAME'\n      AND IS_DELETED = FALSE\n    GROUP BY MONTH(CREATED_TIME)\n) AS MonthlyData\nWHERE MonthRank = 1"
+        },
+        {
+          "name": "Active RFQS procurement dashboard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT PR.ID AS id, PR.TITLE AS Name, PR.DEADLINE AS Last_submission_date, PR.SYSTEM_GENERATED_CODE AS systemGeneratedCode, IFNULL(MIN(VQ.NET_AMOUNT), 0) AS Lowest_quotations, COUNT(VQ.ID) AS Quotes FROM PROCUREMENT_REQUESTS PR INNER JOIN VENDOR_QUOTATIONS VQ ON PR.ID = VQ.PROCUREMENT_REQUEST_ID WHERE PR.TYPE = 'RFQ' AND PR.STATUS = 'OPEN' AND PR.APP_NAME = 'FIBERNEO_APP_NAME' AND PR.CREATED_TIME >= DATE_SUB(NOW(), INTERVAL 12 MONTH) AND PR.CREATED_TIME <= NOW() AND PR.IS_DELETED = FALSE GROUP BY PR.ID"
+        },
+        {
+          "name": "Purchase Total and Mom amount procurement",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT\n    'Total amount' AS TYPE_PO,\n    SUM(NET_AMOUNT) AS Amount\nFROM PURCHASE_ORDER\nWHERE APP_NAME = 'FIBERNEO_APP_NAME'\n  AND IS_DELETED = FALSE\n\nUNION ALL\n\nSELECT\n    'MoM amount' AS TYPE,\n    MoM_Amount AS Amount\nFROM (\n    SELECT\n        MONTHNAME(CREATED_TIME) AS Month,\n        COALESCE(\n            SUM(NET_AMOUNT) - LAG(SUM(NET_AMOUNT)) OVER (ORDER BY MONTH(CREATED_TIME)),\n            0\n        ) AS MoM_Amount,\n        ROW_NUMBER() OVER (ORDER BY MONTH(CREATED_TIME) DESC) AS MonthRank\n    FROM PURCHASE_ORDER\n    WHERE APP_NAME = 'FIBERNEO_APP_NAME'\n      AND IS_DELETED = FALSE\n    GR"
+        }
+      ]
+    },
+    {
+      "key": "site-dashboard",
+      "name": "Site Dashboard",
+      "title": "Site Dashboard",
+      "description": "This is builder analytics made site dashboard which provide all the side analytics data",
+      "module": "Fiberneo_V1.0.1",
+      "datasources": [
+        {
+          "name": "project",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "FIBERNEO_APP_NAME"
+        },
+        {
+          "name": "Fiberneo_Read",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "FIBERNEO_APP_NAME"
+        },
+        {
+          "name": "SCM Dev",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "LOGISTICS_APP_NAME"
+        },
+        {
+          "name": "ITSM Mysql Instance",
+          "type": "mysql",
+          "category": "RDBMS",
+          "applicationName": "ITSM_APP_NAME"
+        }
+      ],
+      "widgets": [
+        {
+          "name": "Material Request (T30D)",
+          "chartType": "column",
+          "chartTypeLabel": "Bar chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "SiteDashboard-MaterialRequest"
+        },
+        {
+          "name": "Facility Trends (T6M)",
+          "chartType": "spline",
+          "chartTypeLabel": "Line chart",
+          "widgetType": "CHART",
+          "description": "T6M - Trailing Six Month",
+          "datasetName": "SiteDashboard-FacilityTrend"
+        },
+        {
+          "name": "Overdue Task",
+          "chartType": "table",
+          "chartTypeLabel": "Table",
+          "widgetType": "TABLE",
+          "description": "",
+          "datasetName": "SiteDashboard-OverDueTask"
+        },
+        {
+          "name": "Aggregated Node 1",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "AG1-SiteDashboard",
+          "datasetName": "SiteDashboard-AN1"
+        },
+        {
+          "name": "Aggregated Node 2",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "AG2-SiteDashboard",
+          "datasetName": "SiteDashboard-AN2"
+        },
+        {
+          "name": "Aggregated Node 3",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "AG3-SiteDashboard",
+          "datasetName": "SiteDashboard-AN3"
+        },
+        {
+          "name": "Central Office",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "CO-SiteDashboard",
+          "datasetName": "SiteDashboard-CentralOffice"
+        },
+        {
+          "name": "OLT",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "OLT-SiteDashboard",
+          "datasetName": "SiteDashboard-OLT"
+        },
+        {
+          "name": "Building",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "Building-SiteDashboard",
+          "datasetName": "SiteDashboard-Building"
+        },
+        {
+          "name": "Blocked Task (T30D)",
+          "chartType": "table",
+          "chartTypeLabel": "Table",
+          "widgetType": "TABLE",
+          "description": "T30D - Trailing Thirty Days",
+          "datasetName": "SiteDashBoard-ProjectBlockedData"
+        },
+        {
+          "name": "Project (1TD)",
+          "chartType": "card",
+          "chartTypeLabel": "KPI tile",
+          "widgetType": "CHART",
+          "description": "ITD - Inception to Date",
+          "datasetName": "SiteDashboard-ProjectStatusCount"
+        },
+        {
+          "name": "ONT",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "ONT - SiteDashBoard",
+          "datasetName": "ONT - SiteDashBoard"
+        },
+        {
+          "name": "CPE",
+          "chartType": "reportTable",
+          "chartTypeLabel": "Report table",
+          "widgetType": "CHART",
+          "description": "CPE - SiteDashBoard",
+          "datasetName": "CPE - SiteDashBoard"
+        },
+        {
+          "name": "Ticket classification",
+          "chartType": "pie",
+          "chartTypeLabel": "Pie chart",
+          "widgetType": "CHART",
+          "description": "",
+          "datasetName": "Ticket classification itsm"
+        }
+      ],
+      "datasets": [
+        {
+          "name": "ONT - SiteDashBoard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'ONT'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progress' THEN 3\n  "
+        },
+        {
+          "name": "CPE - SiteDashBoard",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'CPE'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progress' THEN 3\n  "
+        },
+        {
+          "name": "SiteDashboard-AN1",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'Aggregated Node 1'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progr"
+        },
+        {
+          "name": "SiteDashboard-AN2",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'Aggregated Node 2'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progr"
+        },
+        {
+          "name": "SiteDashboard-AN3",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'Aggregated Node 3'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progr"
+        },
+        {
+          "name": "SiteDashboard-OLT",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'OLT'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progress' THEN 3\n  "
+        },
+        {
+          "name": "SiteDashboard-CentralOffice",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'Central Office'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progress"
+        },
+        {
+          "name": "SiteDashboard-Building",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT \n    s.Status AS column1,\n    COALESCE(COUNT(f1_0.id), 0) AS Count\nFROM (\n    SELECT 'Proposed' AS Status\n    UNION ALL\n    SELECT 'Planned'\n    UNION ALL\n    SELECT 'In progress'\n    UNION ALL\n    SELECT 'In construction'\n    UNION ALL\n    SELECT 'In service'\n) s\nLEFT JOIN FACILITY f1_0 \n    ON f1_0.WORKFLOW_STAGE = s.Status\n    AND f1_0.CUSTOMER_ID = 1\n    AND f1_0.TYPE = 'Building'\n    AND f1_0.IS_DELETED = 0\n    AND f1_0.PRIMARY_GEO_L1_FK <> 9226\nGROUP BY s.Status\nORDER BY \n    CASE s.Status\n        WHEN 'Proposed' THEN 1\n        WHEN 'Planned' THEN 2\n        WHEN 'In progress' THEN"
+        },
+        {
+          "name": "SiteDashboard-FacilityTrend",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT 'In progress' AS Status, MONTHNAME(CREATED_TIME) AS Month, COUNT(*) AS Count\nFROM FACILITY\nWHERE CUSTOMER_ID = 1\n  AND CREATED_TIME >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)\n  AND WORKFLOW_STAGE = 'In progress'\nGROUP BY MONTH(CREATED_TIME), MONTHNAME(CREATED_TIME)\n\nUNION ALL\n\nSELECT 'Planned' AS Status, MONTHNAME(CREATED_TIME) AS Month, COUNT(*) AS Count\nFROM FACILITY\nWHERE CUSTOMER_ID = 1\n  AND CREATED_TIME >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)\n  AND WORKFLOW_STAGE = 'Planned'\nGROUP BY MONTH(CREATED_TIME), MONTHNAME(CREATED_TIME)\n\nUNION ALL\n\nSELECT 'Proposed' AS Status, MONTHNAME(CRE"
+        },
+        {
+          "name": "SiteDashBoard-ProjectBlockedData",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT DISTINCT (pt.NAME) AS Name, any_value(pt.ENTITY_IDENTIFIER) AS Entity_Identifier, pt.BLOCKED_REASON AS Blocked_Reason FROM PROJECT_TASK pt JOIN PROJECT p ON pt.PROJECT_FK = p.ID JOIN TASK_ACTION TA ON pt.ID = TA.PROJECT_TASK_FK WHERE pt.BLOCKED = 1 AND pt.MODIFIED_TIME >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND p.APP_NAME = 'FIBERNEO_APP_NAME' AND p.ENTITY_TYPE = 'Facility' ORDER BY DATE(pt.MODIFIED_TIME) DESC LIMIT 5"
+        },
+        {
+          "name": "SiteDashboard-OverDueTask",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT DISTINCT pt.NAME AS Name, pt.PROJECT_REFERENCE_ID AS ReferenceId, DATEDIFF(CURDATE(), pt.PLANNED_END_DATE) AS OVERDUE_DAYS, CASE WHEN CURDATE() > pt.PLANNED_END_DATE THEN 'Critical' ELSE 'On Track' END AS Risk FROM PROJECT_TASK pt JOIN PROJECT p ON pt.PROJECT_FK = p.ID JOIN TASK_ACTION TA ON pt.ID = TA.PROJECT_TASK_FK WHERE DATE(pt.PLANNED_END_DATE) < CURDATE() AND pt.STATUS != 'COMPLETED' AND pt.CATEGORY = 'PM' AND p.APP_NAME = 'FIBERNEO_APP_NAME' AND p.CUSTOMER_ID = '1' AND p.ENTITY_TYPE = 'Facility' AND p.PARENT_ENTITY_ID = 'null' ORDER BY pt.MODIFIED_TIME DESC LIMIT 4"
+        },
+        {
+          "name": "SiteDashboard-ProjectStatusCount",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "FIBERNEO_APP_NAME",
+          "query": "SELECT sub.PROGRESS AS column1, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'AHEAD_OF_SCHEDULE' THEN sub.COUNT ELSE 0 END) AS AHEAD_OF_SCHEDULE, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'DELAYED' THEN sub.COUNT ELSE 0 END) AS DELAY, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'ON_TIME' THEN sub.COUNT ELSE 0 END) AS ON_TIME, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'AHEAD_OF_SCHEDULE' AND sub.BLOCKED = 1 THEN sub.COUNT ELSE 0 END) AS BLOCKED_AHEAD_OF_SCHEDULE, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'DELAYED' AND sub.BLOCKED = 1 THEN sub.COUNT ELSE 0 END) AS BLOCKED_DELAY, SUM(CASE WHEN sub.SCHEDULE_STATUS = 'ON_TIME' AND s"
+        },
+        {
+          "name": "Ticket classification itsm",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": null,
+          "query": "SELECT count(t1_0.id) AS column1, t1_0.WORKFLOW_STAGE AS column2 FROM TICKET t1_0 WHERE t1_0.CUSTOMER_ID = 1 AND t1_0.WORKFLOW_STAGE IS NOT NULL AND t1_0.DELETED = 0 AND t1_0.ENTITY_TYPE = 'Facility' GROUP BY t1_0.WORKFLOW_STAGE;"
+        },
+        {
+          "name": "SiteDashboard-MaterialRequest",
+          "description": "",
+          "sourceType": "SQL_QUERY",
+          "applicationName": "LOGISTICS_APP_NAME",
+          "query": "SELECT STATUS_LABEL AS Status,\n       'On time' AS State,\n       SUM(ONTIME_FLAG) AS Count\nFROM (\n    SELECT \n        CASE \n            WHEN STATUS IN ('PENDING_APPROVAL','APPROVED','DRAFT') THEN 'REQUESTED'\n            WHEN STATUS = 'PARTIALLY_ISSUED' THEN 'IN_PROGRESS'\n            WHEN STATUS = 'FULLY_ISSUED' THEN 'COMPLETED'\n        END AS STATUS_LABEL,\n        CASE \n            WHEN (STATUS IN ('DRAFT','PENDING_APPROVAL','APPROVED') \n                  AND EXPECTED_DELIVERY_DATE >= NOW() \n                  AND COMPLETION_DATE IS NULL) \n                 OR (STATUS = 'PARTIALLY_ISSUED' \n     "
+        }
+      ]
+    }
+  ]
+}
