@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, ChevronDown, Mic, ArrowUp, AlertTriangle, CheckSquare, Maximize2, Sparkles, Filter } from "../icons";
 import { TONE, type Persona, type Agent } from "./personas";
+import { useCurrentUser } from "./CurrentUser";
 
 // Ask-first home for every persona. One prompt across the team; the specialist agents
 // sit quietly below; what needs a human lives in the right rail. Minimal navigation.
@@ -46,6 +47,7 @@ export function PersonaHome({ persona, onOpenAgent, onAsk }: { persona: Persona;
   const [addAgentClicked, setAddAgentClicked] = useState(false);
   const cfg = HOME[persona.id] ?? FALLBACK;
   const hasRail = cfg.attention.length > 0 || cfg.tasks.length > 0;
+  const userName = useCurrentUser();
 
   return (
     <div className="flex h-full min-h-0">
@@ -53,7 +55,7 @@ export function PersonaHome({ persona, onOpenAgent, onAsk }: { persona: Persona;
       <div className="flex min-w-0 flex-1 flex-col min-h-0">
         <div className="mx-auto w-full max-w-[860px] flex-shrink-0 px-6 pb-2 pt-[7vh]">
           <h1 className="mb-6 text-center text-foreground" style={{ fontSize: "27px", fontWeight: 600 }}>
-            Hi Dilip, {cfg.greeting}
+            Hi {userName}, {cfg.greeting}
           </h1>
 
           {/* Ask box */}

@@ -6,6 +6,7 @@ import {
   Upload, Settings, Kanban, Database, UserCircle, BookOpen, Maximize2,
 } from "../icons";
 import { AgentDocPanel } from "../shell/AgentDocs";
+import { useCurrentUser } from "../shell/CurrentUser";
 import applicationCatalog from "../data/applicationCatalog.json";
 
 export type BiTaskKind = "dataset" | "widget" | "dashboard" | "report";
@@ -2252,6 +2253,7 @@ export interface BreadcrumbState { extra: { label: string }[]; backToRoot?: () =
 export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void; initialPrompt?: string }) {
   const meta = KIND_META[kind];
   const tasks = TASKS_BY_KIND[kind];
+  const userName = useCurrentUser();
   const [view, setView] = useState<"list" | "preview" | "chat" | "studio">(() => (initialPrompt ? "studio" : "list"));
   const [selected, setSelected] = useState<BiTask | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -2447,28 +2449,28 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
       DASHBOARD_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
-        scheduled: false, creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+        scheduled: false, creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
       });
     } else if (kind === "widget") {
       WIDGET_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
         widgetType: studioWidgetType, datasetName: studioDataset ?? "—",
-        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+        creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
       });
     } else if (kind === "dataset") {
       DATASET_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
         rowCount: pick([1240, 3860, 9120, 15400], seedFromId(id)), sourceType: studioDatasource ?? "—",
-        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+        creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
       });
     } else {
       REPORT_LIST.unshift({
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private",
         frequency: studioReportFrequency ?? "Monthly", sourceDashboards: studioReportDashboards,
-        creatorName: "Dilip", lastActivityAgo: "Just now", lastActivityBy: "Dilip",
+        creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
       });
     }
     setStudioStage("saved");
