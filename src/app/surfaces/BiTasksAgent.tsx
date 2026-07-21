@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   Table2, BarChart2, LayoutGrid, FileText, Eye, Trash2, RotateCcw, XCircle, Sparkles,
-  CheckCircle2, Clock, Loader, AlertCircle, MoreVertical, ChevronLeft, Send,
+  CheckCircle2, Clock, Loader, AlertCircle, MoreVertical, Send,
   Play, Download, RefreshCw, Edit, Check, X, Paperclip, Link2, Plus, ArrowUp, Info, ChevronDown, List, Search, Filter,
   Upload, Settings, Kanban, Database, UserCircle, BookOpen,
 } from "../icons";
@@ -2412,19 +2412,9 @@ function AssignTaskPanel({ kind, onClose, onSubmitted }: { kind: BiTaskKind; onC
   );
 }
 
-function BackBar({ label, onBack }: { label: string; onBack: () => void }) {
-  return (
-    <div className="flex flex-shrink-0 items-center gap-3 border-b border-border bg-card px-6 py-3.5">
-      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-primary" style={{ fontSize: "12.5px", fontWeight: 600 }}>
-        <ChevronLeft className="h-3.5 w-3.5" /> Tasks
-      </button>
-      <div className="h-4 w-px bg-border" />
-      <span className="text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>{label}</span>
-    </div>
-  );
-}
+export interface BreadcrumbState { extra: { label: string }[]; backToRoot?: () => void }
 
-export function BiTasksAgent({ kind }: { kind: BiTaskKind }) {
+export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void }) {
   const meta = KIND_META[kind];
   const tasks = TASKS_BY_KIND[kind];
   const [view, setView] = useState<"list" | "preview" | "chat">("list");
@@ -2451,10 +2441,15 @@ export function BiTasksAgent({ kind }: { kind: BiTaskKind }) {
   const selectedDataset = kind === "dataset" && selected ? DATASET_LIST.find((d) => d.id === selected.id) : undefined;
   const selectedReport = kind === "report" && selected ? REPORT_LIST.find((r) => r.id === selected.id) : undefined;
 
+  useEffect(() => {
+    if (!onBreadcrumb) return;
+    if (view !== "list" && selected) onBreadcrumb({ extra: [{ label: selected.title }], backToRoot: backToList });
+    else onBreadcrumb({ extra: [] });
+  }, [view, selected]);
+
   if (view === "preview" && selected) {
     return (
       <div className="flex h-full flex-col">
-        <BackBar label={selected.title} onBack={backToList} />
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {kind === "dashboard" ? (
             <DashboardPreview
@@ -2506,7 +2501,6 @@ export function BiTasksAgent({ kind }: { kind: BiTaskKind }) {
   if (view === "chat" && selected) {
     return (
       <div className="flex h-full flex-col">
-        <BackBar label={selected.title} onBack={backToList} />
         <div className="flex min-h-0 flex-1">
           <div className="w-[60%] flex-shrink-0 overflow-y-auto border-r border-border px-6 py-5">
             {kind === "dashboard" ? (
