@@ -1,9 +1,9 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import {
   Table2, BarChart2, LayoutGrid, FileText, Eye, Trash2, RotateCcw, XCircle, Sparkles,
-  CheckCircle2, Clock, Loader, AlertCircle, MoreVertical, Send,
+  CheckCircle2, Clock, Loader, AlertCircle, MoreVertical, Send, Activity, AlertTriangle, TrendingUp, TrendingDown,
   Play, Download, RefreshCw, Edit, Check, X, Paperclip, Link2, Plus, ArrowUp, Info, ChevronDown, List, Search, Filter,
-  Upload, Settings, Kanban, Database, UserCircle, BookOpen,
+  Upload, Settings, Kanban, Database, UserCircle, BookOpen, ShoppingCart, MessageSquare,
 } from "../icons";
 import { AgentDocPanel } from "../shell/AgentDocs";
 import applicationCatalog from "../data/applicationCatalog.json";
@@ -86,13 +86,13 @@ const ACCESS_CHIP: Record<"Private" | "Public", string> = {
 };
 
 const DASHBOARD_LIST: DashboardRow[] = [
-  { id: "dl1", status: "Approved", name: "Network fault trends by region", displayName: "Network fault trends", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", scheduled: true, creatorName: "Ayus Kumar", lastActivityAgo: "17 Hrs ago", lastActivityBy: "Ayus Kumar" },
-  { id: "dl2", status: "Approved", name: "Field crew utilization dashboard", displayName: "Field crew utilization", packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations", accessLevel: "Private", scheduled: false, creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
-  { id: "dl3", status: "Awaiting approval", name: "Customer 360 overview", displayName: "Customer 360 overview", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Private", scheduled: true, creatorName: "Priya Nair", lastActivityAgo: "2 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "dl4", status: "Approved", name: "Churn & retention dashboard", displayName: "Churn & retention", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Public", scheduled: true, creatorName: "Priya Nair", lastActivityAgo: "4 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "dl5", status: "Approved", name: "SLA compliance dashboard", displayName: "SLA compliance", packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private", scheduled: true, creatorName: "Ayus Kumar", lastActivityAgo: "5 Days ago", lastActivityBy: "Ayus Kumar" },
-  { id: "dl6", status: "Draft", name: "Claims fraud monitor", displayName: "Claims fraud monitor", packageName: "ANALYTICS", moduleName: "Risk & fraud", accessLevel: "Private", scheduled: false, creatorName: "Priya Nair", lastActivityAgo: "6 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "dl7", status: "Approved", name: "Revenue trend dashboard", displayName: "Revenue trend", packageName: "ANALYTICS", moduleName: "Finance analytics", accessLevel: "Private", scheduled: true, creatorName: "Ayus Kumar", lastActivityAgo: "6 Days ago", lastActivityBy: "Ayus Kumar" },
+  { id: "dl1", status: "Approved", name: "Problem Management Dashboard", displayName: "Problem Management Dashboard", packageName: "visionwaves-1.0", moduleName: "Problem Management", accessLevel: "Public", scheduled: true, creatorName: "Nisha Bhamare", lastActivityAgo: "12 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "dl2", status: "Approved", name: "Incident Management Dashboard", displayName: "Incident Management Dashboard", packageName: "ITSM_V1.0.0", moduleName: "ITSM", accessLevel: "Private", scheduled: false, creatorName: "Amay Choube", lastActivityAgo: "14 Days ago", lastActivityBy: "Amay Choube" },
+  { id: "dl3", status: "Approved", name: "Procurement Dashboard", displayName: "Procurement Dashboard New", packageName: "SCM_V1.0", moduleName: "Procurement", accessLevel: "Private", scheduled: false, creatorName: "Amay Choube", lastActivityAgo: "14 Days ago", lastActivityBy: "Amay Choube" },
+  { id: "dl4", status: "Approved", name: "Trial Dashboard", displayName: "Trial Dashboard", packageName: "TRIAL_MANAGEMENT_MODULE", moduleName: "Trial Management", accessLevel: "Private", scheduled: false, creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "dl5", status: "Approved", name: "Site Dashboard", displayName: "Site Dashboard", packageName: "Fiberneo_V1.0.1", moduleName: "FiberNeo", accessLevel: "Private", scheduled: false, creatorName: "Rupali Bandore", lastActivityAgo: "14 Days ago", lastActivityBy: "Rupali Bandore" },
+  { id: "dl6", status: "Approved", name: "IPAM Dashboard", displayName: "IPAM Dashboard", packageName: "ipam_v0.1", moduleName: "IP Address Management", accessLevel: "Private", scheduled: false, creatorName: "Omprakash Satrate", lastActivityAgo: "2 Hrs ago", lastActivityBy: "Omprakash Satrate" },
+  { id: "dl7", status: "Approved", name: "Inventory Planning Dashboard", displayName: "Inventory Planning", packageName: "Inventory_Planning_001", moduleName: "Inventory Planning", accessLevel: "Private", scheduled: false, creatorName: "Vishal Chouhan", lastActivityAgo: "3 Hrs ago", lastActivityBy: "Vishal Chouhan" },
   { id: "dl8", status: "Approved", name: "Vendor performance dashboard", displayName: "Vendor performance", packageName: "FIELD-FORCE-MGMT", moduleName: "Vendor management", accessLevel: "Private", scheduled: false, creatorName: "Karan Shah", lastActivityAgo: "9 Days ago", lastActivityBy: "Karan Shah" },
   { id: "dl9", status: "Rejected", name: "Executive board pack", displayName: "Executive board pack", packageName: "ANALYTICS", moduleName: "Executive reporting", accessLevel: "Private", scheduled: false, creatorName: "Priya Nair", lastActivityAgo: "11 Days ago", lastActivityBy: "Ayus Kumar" },
   { id: "dl10", status: "Approved", name: "Incident response dashboard", displayName: "Incident response", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Public", scheduled: true, creatorName: "Karan Shah", lastActivityAgo: "13 Days ago", lastActivityBy: "Karan Shah" },
@@ -104,7 +104,7 @@ function dashboardRowToTask(r: DashboardRow): BiTask {
   return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo };
 }
 
-const MODULE_OPTIONS = ["All modules", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Vendor management", "Executive reporting", "FinOps"];
+const MODULE_OPTIONS = ["All modules", "Problem Management", "ITSM", "Procurement", "Trial Management", "Field Force Management", "FiberNeo", "IP Address Management", "Inventory Planning", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Vendor management", "Executive reporting", "FinOps"];
 const STATUS_OPTIONS: string[] = ["All statuses", "Approved", "Awaiting approval", "Draft", "Rejected"];
 
 // NST Layer 2 (components.css — Inter, per COMPONENTS.md's "form + table page"
@@ -328,7 +328,7 @@ function DashboardsListView({ onOpen, onCreate, onFlash }: { onOpen: (row: Dashb
 // ── Widgets list — Widget Builder's navigation screen, same NST Layer 2
 // treatment as the Dashboards list above, with "Schedule" swapped for "Type"
 // (a widget's own build shape) since widgets don't carry their own schedule. ──
-type WidgetType = "KPI tile" | "Bar chart" | "Line chart" | "Table";
+type WidgetType = "KPI tile" | "Bar chart" | "Line chart" | "Table" | "Donut chart" | "Area chart" | "Column chart" | "Stacked column chart";
 interface WidgetRow {
   id: string; status: DashboardStatus; name: string; displayName: string;
   packageName: string; moduleName: string; accessLevel: "Private" | "Public";
@@ -336,11 +336,11 @@ interface WidgetRow {
 }
 
 const WIDGET_LIST: WidgetRow[] = [
-  { id: "wl1", status: "Approved", name: "Revenue trend widget", displayName: "Revenue trend", packageName: "ANALYTICS", moduleName: "Finance analytics", accessLevel: "Private", widgetType: "Line chart", datasetName: "Revenue dataset", creatorName: "Ayus Kumar", lastActivityAgo: "9 Hrs ago", lastActivityBy: "Ayus Kumar" },
-  { id: "wl2", status: "Approved", name: "Network fault KPI widget", displayName: "Network fault rate", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", widgetType: "KPI tile", datasetName: "Network devices", creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
-  { id: "wl3", status: "Awaiting approval", name: "Field crew utilization widget", displayName: "Crew utilization", packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations", accessLevel: "Private", widgetType: "Bar chart", datasetName: "Crew schedule", creatorName: "Karan Shah", lastActivityAgo: "2 Days ago", lastActivityBy: "Karan Shah" },
-  { id: "wl4", status: "Approved", name: "Customer churn widget", displayName: "Churn rate", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Public", widgetType: "KPI tile", datasetName: "Churn feature dataset", creatorName: "Priya Nair", lastActivityAgo: "3 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "wl5", status: "Approved", name: "Open tickets by severity", displayName: "Tickets by severity", packageName: "ITSM", moduleName: "Service desk", accessLevel: "Private", widgetType: "Bar chart", datasetName: "Tickets", creatorName: "Priya Nair", lastActivityAgo: "4 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "wl1", status: "Approved", name: "Problem by Severity", displayName: "Problem by Severity", packageName: "ITSM_APP_NAME", moduleName: "ITSM", accessLevel: "Private", widgetType: "Donut chart", datasetName: "Problem Severity Count Dataset", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "wl2", status: "Approved", name: "Incident by categories", displayName: "Incident by categories", packageName: "PROBLEM-MANAGEMENT_APP_NAME", moduleName: "PROBLEM-MANAGEMENT_APP_NAME", accessLevel: "Private", widgetType: "Bar chart", datasetName: "ITSM Incident By Category", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "wl3", status: "Approved", name: "Purchase trend of procurment", displayName: "Purchase trend of procurment", packageName: "PROCUREMENT_APP_NAME", moduleName: "PROCUREMENT_APP_NAME", accessLevel: "Private", widgetType: "Area chart", datasetName: "Purchase order trend procurement dashaboard", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "wl4", status: "Approved", name: "Mothly job trends", displayName: "Mothly job trends", packageName: "FIELD-FORCE-MGMT_APP_NAME", moduleName: "FIELD-FORCE-MGMT_APP_NAME", accessLevel: "Private", widgetType: "Column chart", datasetName: "MonthlyJobCount", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "wl5", status: "Approved", name: "Trial domain", displayName: "Trial domain", packageName: "TRIAL_MANAGEMENT_MODULE", moduleName: "TRIAL_MANAGEMENT_MODULE", accessLevel: "Private", widgetType: "Stacked column chart", datasetName: "Trial New domain", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
   { id: "wl6", status: "Draft", name: "SLA compliance gauge", displayName: "SLA compliance", packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private", widgetType: "KPI tile", datasetName: "SLA compliance dataset", creatorName: "Ayus Kumar", lastActivityAgo: "5 Days ago", lastActivityBy: "Ayus Kumar" },
   { id: "wl7", status: "Approved", name: "Incident trend widget", displayName: "Incident trend", packageName: "ITSM", moduleName: "Service desk", accessLevel: "Public", widgetType: "Line chart", datasetName: "Incidents", creatorName: "Karan Shah", lastActivityAgo: "6 Days ago", lastActivityBy: "Karan Shah" },
   { id: "wl8", status: "Approved", name: "Top accounts by opportunity value", displayName: "Top accounts", packageName: "CRM", moduleName: "Sales intelligence", accessLevel: "Private", widgetType: "Table", datasetName: "Opportunities", creatorName: "Priya Nair", lastActivityAgo: "8 Days ago", lastActivityBy: "Priya Nair" },
@@ -354,7 +354,7 @@ function widgetRowToTask(r: WidgetRow): BiTask {
   return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo };
 }
 
-const WIDGET_MODULE_OPTIONS = ["All modules", "Finance analytics", "Network operations", "Field operations", "Customer intelligence", "Service desk", "Operations analytics", "Sales intelligence", "Warehouse analytics", "Procurement analytics", "Logistics analytics"];
+const WIDGET_MODULE_OPTIONS = ["All modules", "ITSM", "PROBLEM-MANAGEMENT_APP_NAME", "PROCUREMENT_APP_NAME", "FIELD-FORCE-MGMT_APP_NAME", "TRIAL_MANAGEMENT_MODULE", "Finance analytics", "Network operations", "Field operations", "Customer intelligence", "Service desk", "Operations analytics", "Sales intelligence", "Warehouse analytics", "Procurement analytics", "Logistics analytics"];
 
 function WidgetsListView({ onOpen, onCreate, onFlash }: { onOpen: (row: WidgetRow) => void; onCreate: () => void; onFlash: (msg: string) => void }) {
   const [search, setSearch] = useState("");
@@ -476,25 +476,35 @@ interface DatasetRow {
 }
 
 const DATASET_LIST: DatasetRow[] = [
-  { id: "ds1", status: "Approved", name: "Revenue dataset", displayName: "Revenue dataset", packageName: "ANALYTICS", moduleName: "Finance analytics", accessLevel: "Private", rowCount: 48210, sourceType: "Warehouse (Snowflake)", creatorName: "Ayus Kumar", lastActivityAgo: "10 Hrs ago", lastActivityBy: "Ayus Kumar" },
-  { id: "ds2", status: "Approved", name: "Network devices", displayName: "Network devices", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", rowCount: 6420, sourceType: "Network Inventory (Oracle)", creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
-  { id: "ds3", status: "Awaiting approval", name: "Crew schedule", displayName: "Crew schedule", packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations", accessLevel: "Private", rowCount: 1890, sourceType: "Field Ops (PostgreSQL)", creatorName: "Karan Shah", lastActivityAgo: "2 Days ago", lastActivityBy: "Karan Shah" },
-  { id: "ds4", status: "Approved", name: "Churn feature dataset", displayName: "Churn features", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Public", rowCount: 22104, sourceType: "Warehouse (Snowflake)", creatorName: "Priya Nair", lastActivityAgo: "3 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "ds5", status: "Approved", name: "Tickets", displayName: "Support tickets", packageName: "ITSM", moduleName: "Service desk", accessLevel: "Private", rowCount: 15870, sourceType: "ServiceNow", creatorName: "Priya Nair", lastActivityAgo: "4 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "ds6", status: "Draft", name: "SLA compliance dataset", displayName: "SLA compliance", packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private", rowCount: 4310, sourceType: "Warehouse (Snowflake)", creatorName: "Ayus Kumar", lastActivityAgo: "5 Days ago", lastActivityBy: "Ayus Kumar" },
-  { id: "ds7", status: "Approved", name: "Incidents", displayName: "Incidents", packageName: "ITSM", moduleName: "Service desk", accessLevel: "Public", rowCount: 9245, sourceType: "ServiceNow", creatorName: "Karan Shah", lastActivityAgo: "6 Days ago", lastActivityBy: "Karan Shah" },
-  { id: "ds8", status: "Approved", name: "Opportunities", displayName: "Opportunities", packageName: "CRM", moduleName: "Sales intelligence", accessLevel: "Private", rowCount: 3612, sourceType: "Salesforce CRM", creatorName: "Priya Nair", lastActivityAgo: "8 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "ds9", status: "Rejected", name: "Stock levels", displayName: "Stock levels", packageName: "Inventory", moduleName: "Warehouse analytics", accessLevel: "Private", rowCount: 51830, sourceType: "Warehouse Management (SAP)", creatorName: "Ayus Kumar", lastActivityAgo: "10 Days ago", lastActivityBy: "Karan Shah" },
-  { id: "ds10", status: "Approved", name: "Supplier performance", displayName: "Supplier performance", packageName: "SCM", moduleName: "Procurement analytics", accessLevel: "Private", rowCount: 2104, sourceType: "Procurement (Oracle SCM)", creatorName: "Karan Shah", lastActivityAgo: "14 Days ago", lastActivityBy: "Karan Shah" },
-  { id: "ds11", status: "Approved", name: "Device health metrics", displayName: "Device health", packageName: "Network Discovery", moduleName: "Network operations", accessLevel: "Public", rowCount: 18760, sourceType: "SNMP Poller", creatorName: "Ayus Kumar", lastActivityAgo: "19 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "ds12", status: "Awaiting approval", name: "Delivery SLAs", displayName: "Delivery SLAs", packageName: "SCM", moduleName: "Logistics analytics", accessLevel: "Private", rowCount: 7395, sourceType: "Logistics (PostgreSQL)", creatorName: "Priya Nair", lastActivityAgo: "23 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "ds1", status: "Approved", name: "Revenue dataset", displayName: "Revenue dataset", packageName: "ANALYTICS", moduleName: "Financial Reportings", accessLevel: "Private", rowCount: 48210, sourceType: "Finance DB (PostgreSQL)", creatorName: "Ayus Kumar", lastActivityAgo: "10 Hrs ago", lastActivityBy: "Ayus Kumar" },
+  { id: "ds2", status: "Approved", name: "Network devices", displayName: "Network devices", packageName: "FIBERNEO", moduleName: "Fiberneo", accessLevel: "Private", rowCount: 6420, sourceType: "Network Inventory (MySQL)", creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
+  { id: "ds3", status: "Awaiting approval", name: "Crew schedule", displayName: "Crew schedule", packageName: "FIELD-FORCE-MGMT", moduleName: "Field Force Management", accessLevel: "Private", rowCount: 1890, sourceType: "Field Ops (PostgreSQL)", creatorName: "Karan Shah", lastActivityAgo: "2 Days ago", lastActivityBy: "Karan Shah" },
+  { id: "ds4", status: "Approved", name: "Churn feature dataset", displayName: "Churn features", packageName: "ANALYTICS", moduleName: "CRM", accessLevel: "Public", rowCount: 22104, sourceType: "Customer DB (PostgreSQL)", creatorName: "Priya Nair", lastActivityAgo: "3 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "ds5", status: "Approved", name: "Tickets", displayName: "Support tickets", packageName: "ITSM", moduleName: "ITSM", accessLevel: "Private", rowCount: 15870, sourceType: "Support DB (MySQL)", creatorName: "Priya Nair", lastActivityAgo: "4 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "ds6", status: "Draft", name: "SLA compliance dataset", displayName: "SLA compliance", packageName: "ANALYTICS", moduleName: "SLA", accessLevel: "Private", rowCount: 4310, sourceType: "Ops DB (PostgreSQL)", creatorName: "Ayus Kumar", lastActivityAgo: "5 Days ago", lastActivityBy: "Ayus Kumar" },
+  { id: "ds7", status: "Approved", name: "Incidents", displayName: "Incidents", packageName: "ITSM", moduleName: "Incidents", accessLevel: "Public", rowCount: 9245, sourceType: "ITSM DB (MySQL)", creatorName: "Karan Shah", lastActivityAgo: "6 Days ago", lastActivityBy: "Karan Shah" },
+  { id: "ds8", status: "Approved", name: "Opportunities", displayName: "Opportunities", packageName: "CRM", moduleName: "CRM", accessLevel: "Private", rowCount: 3612, sourceType: "CRM DB (PostgreSQL)", creatorName: "Priya Nair", lastActivityAgo: "8 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "ds9", status: "Rejected", name: "Stock levels", displayName: "Stock levels", packageName: "Inventory", moduleName: "Inventory", accessLevel: "Private", rowCount: 51830, sourceType: "Inventory DB (MySQL)", creatorName: "Ayus Kumar", lastActivityAgo: "10 Days ago", lastActivityBy: "Karan Shah" },
+  { id: "ds10", status: "Approved", name: "Supplier performance", displayName: "Supplier performance", packageName: "SCM", moduleName: "Contracts", accessLevel: "Private", rowCount: 2104, sourceType: "Procurement DB (PostgreSQL)", creatorName: "Karan Shah", lastActivityAgo: "14 Days ago", lastActivityBy: "Karan Shah" },
+  { id: "ds11", status: "Approved", name: "Device health metrics", displayName: "Device health", packageName: "Network Discovery", moduleName: "Fiberneo", accessLevel: "Public", rowCount: 18760, sourceType: "Monitoring DB (MySQL)", creatorName: "Ayus Kumar", lastActivityAgo: "19 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "ds12", status: "Awaiting approval", name: "Delivery SLAs", displayName: "Delivery SLAs", packageName: "SCM", moduleName: "Warehouse and logistics", accessLevel: "Private", rowCount: 7395, sourceType: "Logistics DB (PostgreSQL)", creatorName: "Priya Nair", lastActivityAgo: "23 Days ago", lastActivityBy: "Priya Nair" },
+  // ds13–ds17 back the widgets built earlier from real screenshots (wl1–wl5)
+  // — those widgets referenced dataset names that had no catalog entry, so
+  // "Used by widgets" on the source dataset always read "None yet". Package/
+  // module intentionally match the consuming widget so the cross-link (and
+  // the "Used by widgets" card) resolves correctly.
+  { id: "ds13", status: "Approved", name: "Problem Severity Count Dataset", displayName: "Problem Severity Count Dataset", packageName: "ITSM_APP_NAME", moduleName: "PROBLEM_MANAGEMENT_APP_NAME", accessLevel: "Private", rowCount: 640, sourceType: "ITSM DB (MySQL)", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "ds14", status: "Approved", name: "ITSM Incident By Category", displayName: "ITSM Incident By Category", packageName: "PROBLEM-MANAGEMENT_APP_NAME", moduleName: "Incidents", accessLevel: "Private", rowCount: 1280, sourceType: "Problem Management DB (PostgreSQL)", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "ds15", status: "Approved", name: "Purchase order trend procurement dashaboard", displayName: "Purchase order trend procurement dashaboard", packageName: "PROCUREMENT_APP_NAME", moduleName: "Warehouse and logistics", accessLevel: "Private", rowCount: 4200, sourceType: "Procurement DB (MySQL)", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "ds16", status: "Approved", name: "MonthlyJobCount", displayName: "Monthly job count", packageName: "FIELD-FORCE-MGMT_APP_NAME", moduleName: "Field Force Management", accessLevel: "Private", rowCount: 980, sourceType: "Field Force DB (PostgreSQL)", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
+  { id: "ds17", status: "Approved", name: "Trial New domain", displayName: "Trial new domain", packageName: "TRIAL_MANAGEMENT_MODULE", moduleName: "Program & Projects", accessLevel: "Private", rowCount: 210, sourceType: "Trial Management DB (MySQL)", creatorName: "Nisha Bhamare", lastActivityAgo: "14 Days ago", lastActivityBy: "Nisha Bhamare" },
 ];
 
 function datasetRowToTask(r: DatasetRow): BiTask {
   return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo };
 }
 
-const DATASET_MODULE_OPTIONS = ["All modules", "Finance analytics", "Network operations", "Field operations", "Customer intelligence", "Service desk", "Operations analytics", "Sales intelligence", "Warehouse analytics", "Procurement analytics", "Logistics analytics"];
+const DATASET_MODULE_OPTIONS = ["All modules", "Fiberneo", "Field Force Management", "ITSM", "Financial Reportings", "CRM", "Warehouse and logistics", "Contracts", "PROBLEM_MANAGEMENT_APP_NAME", "Program & Projects", "Inventory", "SLA", "Incidents"];
 
 function DatasetsListView({ onOpen, onCreate, onFlash }: { onOpen: (row: DatasetRow) => void; onCreate: () => void; onFlash: (msg: string) => void }) {
   const [search, setSearch] = useState("");
@@ -616,11 +626,11 @@ interface ReportRow {
 }
 
 const REPORT_LIST: ReportRow[] = [
-  { id: "rp1", status: "Approved", name: "Weekly network health report", displayName: "Network health", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", frequency: "Weekly", sourceDashboards: ["Network fault trends by region", "Incident response dashboard"], creatorName: "Ayus Kumar", lastActivityAgo: "8 Hrs ago", lastActivityBy: "Ayus Kumar" },
-  { id: "rp2", status: "Approved", name: "Monthly field operations report", displayName: "Field operations", packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations", accessLevel: "Private", frequency: "Monthly", sourceDashboards: ["Field crew utilization dashboard", "Vendor performance dashboard"], creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
-  { id: "rp3", status: "Awaiting approval", name: "Customer intelligence digest", displayName: "Customer digest", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Private", frequency: "Weekly", sourceDashboards: ["Customer 360 overview", "Churn & retention dashboard"], creatorName: "Priya Nair", lastActivityAgo: "2 Days ago", lastActivityBy: "Priya Nair" },
-  { id: "rp4", status: "Approved", name: "Quarterly SLA compliance report", displayName: "SLA compliance", packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Public", frequency: "Quarterly", sourceDashboards: ["SLA compliance dashboard"], creatorName: "Ayus Kumar", lastActivityAgo: "3 Days ago", lastActivityBy: "Ayus Kumar" },
-  { id: "rp5", status: "Draft", name: "Fraud & risk summary", displayName: "Fraud & risk", packageName: "ANALYTICS", moduleName: "Risk & fraud", accessLevel: "Private", frequency: "Monthly", sourceDashboards: ["Claims fraud monitor"], creatorName: "Priya Nair", lastActivityAgo: "5 Days ago", lastActivityBy: "Priya Nair" },
+  { id: "rp1", status: "Approved", name: "Case Register Care Report", displayName: "Case register care", packageName: "customer-care-v1", moduleName: "Case Management", accessLevel: "Private", frequency: "One-time", sourceDashboards: [], creatorName: "Manoj Patidar", lastActivityAgo: "14 Days ago", lastActivityBy: "Manoj Patidar" },
+  { id: "rp2", status: "Approved", name: "Survey Register and Lifecycle Report", displayName: "Survey register & lifecycle", packageName: "Customer-feedback-0.0.1", moduleName: "Survey and Feedback", accessLevel: "Private", frequency: "One-time", sourceDashboards: [], creatorName: "Manoj Patidar", lastActivityAgo: "14 Days ago", lastActivityBy: "Manoj Patidar" },
+  { id: "rp3", status: "Approved", name: "Delayed Orders Report", displayName: "Delayed orders", packageName: "Order_Management-1.0", moduleName: "OrderManagement", accessLevel: "Private", frequency: "One-time", sourceDashboards: [], creatorName: "Manoj Patidar", lastActivityAgo: "14 Days ago", lastActivityBy: "Manoj Patidar" },
+  { id: "rp4", status: "Approved", name: "Partner Master Report", displayName: "Partner master", packageName: "Order_Management-1.0", moduleName: "CPM Application", accessLevel: "Private", frequency: "One-time", sourceDashboards: [], creatorName: "Manoj Patidar", lastActivityAgo: "14 Days ago", lastActivityBy: "Manoj Patidar" },
+  { id: "rp5", status: "Approved", name: "Lost Deals Analysis Report", displayName: "Lost deals analysis", packageName: "CRM_V1", moduleName: "CRM", accessLevel: "Private", frequency: "One-time", sourceDashboards: [], creatorName: "Manoj Patidar", lastActivityAgo: "14 Days ago", lastActivityBy: "Manoj Patidar" },
   { id: "rp6", status: "Approved", name: "Monthly revenue report", displayName: "Revenue report", packageName: "ANALYTICS", moduleName: "Finance analytics", accessLevel: "Private", frequency: "Monthly", sourceDashboards: ["Revenue trend dashboard"], creatorName: "Ayus Kumar", lastActivityAgo: "6 Days ago", lastActivityBy: "Ayus Kumar" },
   { id: "rp7", status: "Approved", name: "Executive board pack (Q3)", displayName: "Board pack Q3", packageName: "ANALYTICS", moduleName: "Executive reporting", accessLevel: "Private", frequency: "Quarterly", sourceDashboards: ["Executive board pack"], creatorName: "Karan Shah", lastActivityAgo: "8 Days ago", lastActivityBy: "Karan Shah" },
   { id: "rp8", status: "Rejected", name: "Cost & capacity review", displayName: "Cost & capacity", packageName: "FIBERNEO", moduleName: "FinOps", accessLevel: "Private", frequency: "Monthly", sourceDashboards: ["Cost & capacity dashboard"], creatorName: "Priya Nair", lastActivityAgo: "10 Days ago", lastActivityBy: "Ayus Kumar" },
@@ -634,7 +644,7 @@ function reportRowToTask(r: ReportRow): BiTask {
   return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo, recurring: r.frequency !== "One-time" ? r.frequency : undefined };
 }
 
-const REPORT_MODULE_OPTIONS = ["All modules", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Executive reporting", "FinOps", "Vendor management"];
+const REPORT_MODULE_OPTIONS = ["All modules", "Case Management", "Survey and Feedback", "OrderManagement", "CPM Application", "CRM", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Executive reporting", "FinOps", "Vendor management"];
 
 function ReportsListView({ onOpen, onCreate, onFlash }: { onOpen: (row: ReportRow) => void; onCreate: () => void; onFlash: (msg: string) => void }) {
   const [search, setSearch] = useState("");
@@ -1130,6 +1140,22 @@ const EXPLAIN: Record<BiTaskKind, string> = {
 // Chart SVG text stays Inter, matching preview/bar-chart.html + line-chart.html. ──
 function pick<T>(arr: T[], seed: number): T { return arr[((seed % arr.length) + arr.length) % arr.length]; }
 
+function useMeasuredWidth(fallback: number) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, width] as const;
+}
+
 function niceMax(v: number) {
   if (v <= 0) return 1;
   const mag = Math.pow(10, Math.floor(Math.log10(v)));
@@ -1138,6 +1164,7 @@ function niceMax(v: number) {
   return niceNorm * mag;
 }
 function formatAxisValue(v: number) {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
   return v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : `${Math.round(v)}`;
 }
 function curvePath(pts: { x: number; y: number }[]) {
@@ -1152,10 +1179,15 @@ function curvePath(pts: { x: number; y: number }[]) {
   }
   return d;
 }
+function linePath(pts: { x: number; y: number }[]) {
+  if (pts.length === 0) return "";
+  return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+}
 
-function SvgBarChart({ data, height = 220 }: { data: { label: string; value: number; color: string }[]; height?: number }) {
-  const W = 520, H = height;
-  const m = { t: 10, r: 8, b: 32, l: 38 };
+function SvgBarChart({ data, height = 220, xAxisLabel, yAxisLabel }: { data: { label: string; value: number; color: string }[]; height?: number; xAxisLabel?: string; yAxisLabel?: string }) {
+  const [ref, W] = useMeasuredWidth(520);
+  const H = height;
+  const m = { t: 10, r: 8, b: xAxisLabel ? 50 : 32, l: yAxisLabel ? 50 : 38 };
   const cW = W - m.l - m.r, cH = H - m.t - m.b;
   const yMax = niceMax(Math.max(1, ...data.map((d) => d.value)));
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => yMax * f);
@@ -1165,46 +1197,212 @@ function SvgBarChart({ data, height = 220 }: { data: { label: string; value: num
   const sx = (i: number) => i * slotW + slotW / 2;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block", overflow: "visible" }}>
-      <g transform={`translate(${m.l},${m.t})`}>
-        {ticks.map((tk, i) => (
-          <g key={i}>
-            <line x1={0} y1={sy(tk)} x2={cW} y2={sy(tk)} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
-            <text x={-8} y={sy(tk) + 4} textAnchor="end" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{formatAxisValue(tk)}</text>
-          </g>
-        ))}
-        {data.map((d, i) => {
-          const x = sx(i) - barW / 2, y = sy(d.value), h = Math.max(cH - y, 1);
-          return (
-            <g key={d.label}>
-              <rect x={x} y={y} width={barW} height={h} rx={6} ry={6} fill={d.color} />
-              <text x={sx(i)} y={cH + 18} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{d.label}</text>
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block", overflow: "visible" }}>
+        <g transform={`translate(${m.l},${m.t})`}>
+          {ticks.map((tk, i) => (
+            <g key={i}>
+              <line x1={0} y1={sy(tk)} x2={cW} y2={sy(tk)} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
+              <text x={-8} y={sy(tk) + 4} textAnchor="end" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{formatAxisValue(tk)}</text>
             </g>
-          );
-        })}
-      </g>
-    </svg>
+          ))}
+          {data.map((d, i) => {
+            const x = sx(i) - barW / 2, y = sy(d.value), h = Math.max(cH - y, 1);
+            return (
+              <g key={i}>
+                <rect x={x} y={y} width={barW} height={h} rx={6} ry={6} fill={d.color} />
+                <text x={sx(i)} y={cH + 18} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{d.label}</text>
+              </g>
+            );
+          })}
+          {xAxisLabel && (
+            <text x={cW / 2} y={cH + 40} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{xAxisLabel}</text>
+          )}
+          {yAxisLabel && (
+            <text transform={`translate(${-(m.l - 14)}, ${cH / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{yAxisLabel}</text>
+          )}
+        </g>
+      </svg>
+    </div>
   );
 }
 
-function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: string; color: string; values: number[] }[]; labels: string[]; height?: number }) {
-  const W = 520, H = height;
-  const m = { t: 10, r: 8, b: 26, l: 34 };
+function SvgStackedColumnChart({ categories, series, height = 320 }: { categories: string[]; series: { name: string; color: string; values: number[] }[]; height?: number }) {
+  const [ref, W] = useMeasuredWidth(520);
+  const H = height;
+  const m = { t: 10, r: 8, b: 34, l: 40 };
+  const cW = W - m.l - m.r, cH = H - m.t - m.b;
+  const totals = categories.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
+  const axisMax = Math.ceil(Math.max(1, ...totals)) + 1;
+  const ticks: number[] = [];
+  for (let v = 0; v <= axisMax; v++) ticks.push(v);
+  const sy = (v: number) => cH - (v / axisMax) * cH;
+  const slotW = cW / categories.length;
+  const barW = Math.min(56, slotW * 0.55);
+  const sx = (i: number) => i * slotW + slotW / 2;
+
+  return (
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block", overflow: "visible" }}>
+        <g transform={`translate(${m.l},${m.t})`}>
+          {ticks.map((tk) => (
+            <g key={tk}>
+              <line x1={0} y1={sy(tk)} x2={cW} y2={sy(tk)} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
+              <text x={-8} y={sy(tk) + 4} textAnchor="end" fontSize={10} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{tk}</text>
+            </g>
+          ))}
+          {categories.map((cat, i) => {
+            const x = sx(i) - barW / 2;
+            let cursor = 0;
+            return (
+              <g key={cat}>
+                {series.map((s) => {
+                  const v = s.values[i] ?? 0;
+                  if (v <= 0) return null;
+                  const y0 = cursor;
+                  cursor += v;
+                  const yTop = sy(cursor);
+                  const h = Math.max(sy(y0) - yTop, 1);
+                  return <rect key={s.name} x={x} y={yTop} width={barW} height={h} fill={s.color} stroke="white" strokeWidth={1} />;
+                })}
+                <text x={sx(i)} y={cH + 16} textAnchor="middle" fontSize={10} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{cat}</text>
+              </g>
+            );
+          })}
+          <text transform={`translate(${-28}, ${cH / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">Count</text>
+        </g>
+      </svg>
+      <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6 }}>
+        {[...series].reverse().map((s) => (
+          <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--vw-color-gray-600)", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} /> {s.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SvgHorizontalBarChart({ data, height = 320, xAxisLabel = "Count", yAxisLabel = "Category" }: { data: { label: string; value: number }[]; height?: number; xAxisLabel?: string; yAxisLabel?: string }) {
+  const [ref, W] = useMeasuredWidth(640);
+  const H = height;
+  const maxLabelChars = Math.max(0, ...data.map((d) => d.label.length));
+  const labelMargin = Math.min(220, Math.max(60, maxLabelChars * 6.2 + 20));
+  const m = { t: 6, r: 16, b: 40, l: labelMargin };
+  const cW = W - m.l - m.r, cH = H - m.t - m.b;
+  const rowH = cH / data.length;
+  const maxVal = Math.max(1, ...data.map((d) => d.value));
+  const axisMax = niceMax(maxVal);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => axisMax * f);
+  const sx = (v: number) => (v / axisMax) * cW;
+  const barH = Math.min(24, rowH * 0.55);
+
+  return (
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block", overflow: "visible" }}>
+        <g transform={`translate(${m.l},${m.t})`}>
+        {ticks.map((tk, i) => (
+          <g key={i}>
+            <line x1={sx(tk)} y1={0} x2={sx(tk)} y2={cH} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
+            <text x={sx(tk)} y={cH + 18} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{formatAxisValue(tk)}</text>
+          </g>
+        ))}
+        <line x1={0} y1={0} x2={0} y2={cH} stroke="var(--vw-color-gray-300)" strokeWidth={1} />
+        {data.map((d, i) => {
+          const y = i * rowH + (rowH - barH) / 2;
+          const w = Math.max(sx(d.value), 1);
+          return (
+            <g key={i}>
+              <text x={-14} y={i * rowH + rowH / 2 + 4} textAnchor="end" fontSize={11} fill="var(--vw-color-gray-600)" fontFamily="Inter, sans-serif">{d.label}</text>
+              <rect x={0} y={y} width={w} height={barH} rx={4} ry={4} fill="var(--vw-color-blue-500)" />
+            </g>
+          );
+        })}
+        <text x={cW / 2} y={cH + 34} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{xAxisLabel}</text>
+        <text transform={`translate(${-(m.l - 15)}, ${cH / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{yAxisLabel}</text>
+      </g>
+      </svg>
+    </div>
+  );
+}
+
+// Horizontal grouped bar chart — like SvgHorizontalBarChart, but each category
+// row holds one thin bar per series (grouped, not stacked).
+function SvgHorizontalGroupedBarChart({ categories, series, height = 320, xAxisLabel = "Count" }: {
+  categories: string[]; series: { name: string; color: string; values: number[] }[]; height?: number; xAxisLabel?: string;
+}) {
+  const [ref, W] = useMeasuredWidth(640);
+  const H = height;
+  const maxLabelChars = Math.max(0, ...categories.map((c) => c.length));
+  const labelMargin = Math.min(220, Math.max(60, maxLabelChars * 6.2 + 20));
+  const m = { t: 6, r: 16, b: 40, l: labelMargin };
+  const cW = W - m.l - m.r, cH = H - m.t - m.b;
+  const rowH = cH / categories.length;
+  const maxVal = Math.max(1, ...series.flatMap((s) => s.values));
+  const axisMax = niceMax(maxVal);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => axisMax * f);
+  const sx = (v: number) => (v / axisMax) * cW;
+  const groupH = rowH * 0.7;
+  const barH = groupH / series.length;
+
+  return (
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block", overflow: "visible" }}>
+        <g transform={`translate(${m.l},${m.t})`}>
+          {ticks.map((tk, i) => (
+            <g key={i}>
+              <line x1={sx(tk)} y1={0} x2={sx(tk)} y2={cH} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
+              <text x={sx(tk)} y={cH + 18} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{formatAxisValue(tk)}</text>
+            </g>
+          ))}
+          <line x1={0} y1={0} x2={0} y2={cH} stroke="var(--vw-color-gray-300)" strokeWidth={1} />
+          {categories.map((cat, i) => {
+            const groupY = i * rowH + (rowH - groupH) / 2;
+            return (
+              <g key={i}>
+                <text x={-14} y={i * rowH + rowH / 2 + 4} textAnchor="end" fontSize={11} fill="var(--vw-color-gray-600)" fontFamily="Inter, sans-serif">{cat}</text>
+                {series.map((s, si) => {
+                  const v = s.values[i] ?? 0;
+                  const w = v > 0 ? Math.max(sx(v), 2) : 0;
+                  return <rect key={s.name} x={0} y={groupY + si * barH + 1} width={w} height={Math.max(barH - 2, 1)} rx={2} ry={2} fill={s.color} />;
+                })}
+              </g>
+            );
+          })}
+          <text x={cW / 2} y={cH + 34} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{xAxisLabel}</text>
+        </g>
+      </svg>
+      <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 6 }}>
+        {series.map((s) => (
+          <div key={s.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--vw-color-gray-600)", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} /> {s.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SvgAreaLineChart({ series, labels, height = 240, xAxisLabel, yAxisLabel, curve = "smooth" }: { series: { name: string; color: string; values: number[] }[]; labels: string[]; height?: number; xAxisLabel?: string; yAxisLabel?: string; curve?: "smooth" | "linear" }) {
+  const [ref, W] = useMeasuredWidth(520);
+  const H = height;
+  const m = { t: 10, r: 8, b: xAxisLabel ? 40 : 26, l: yAxisLabel ? 50 : 34 };
   const cW = W - m.l - m.r, cH = H - m.t - m.b;
   const yMax = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => yMax * f);
   const sy = (v: number) => cH - (v / yMax) * cH;
   const sx = (i: number) => (i / Math.max(1, labels.length - 1)) * cW;
   const pointsFor = (values: number[]) => values.map((v, i) => ({ x: sx(i), y: sy(v) }));
+  const buildPath = curve === "linear" ? linePath : curvePath;
   const primaryPts = pointsFor(series[0]?.values ?? []);
   const gradId = `dashPreviewAreaGrad${series[0]?.name.replace(/\s+/g, "") ?? ""}`;
   const areaPath = primaryPts.length
-    ? `${curvePath(primaryPts)} L${primaryPts[primaryPts.length - 1].x.toFixed(1)},${cH} L${primaryPts[0].x.toFixed(1)},${cH} Z`
+    ? `${buildPath(primaryPts)} L${primaryPts[primaryPts.length - 1].x.toFixed(1)},${cH} L${primaryPts[0].x.toFixed(1)},${cH} Z`
     : "";
 
   return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block", overflow: "visible" }}>
+    <div ref={ref} style={{ width: "100%" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} style={{ display: "block", overflow: "visible" }}>
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={series[0]?.color ?? "#38BDF8"} stopOpacity={0.28} />
@@ -1220,7 +1418,7 @@ function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: st
           ))}
           {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
           {series.map((s) => (
-            <path key={s.name} d={curvePath(pointsFor(s.values))} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />
+            <path key={s.name} d={buildPath(pointsFor(s.values))} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />
           ))}
           {series.map((s) => pointsFor(s.values).map((p, i) => (
             <circle key={`${s.name}-${i}`} cx={p.x} cy={p.y} r={3.5} fill={s.color} />
@@ -1228,6 +1426,12 @@ function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: st
           {labels.map((lbl, i) => (
             <text key={lbl} x={sx(i)} y={cH + 16} textAnchor="middle" fontSize={10.5} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{lbl}</text>
           ))}
+          {xAxisLabel && (
+            <text x={cW / 2} y={cH + 34} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{xAxisLabel}</text>
+          )}
+          {yAxisLabel && (
+            <text transform={`translate(${-(m.l - 14)}, ${cH / 2}) rotate(-90)`} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{yAxisLabel}</text>
+          )}
         </g>
       </svg>
       {series.length > 1 && (
@@ -1239,6 +1443,105 @@ function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: st
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function SvgDonutChart({ data, size = 220, hideLegend, centerValue, centerLabel = "Total" }: {
+  data: { label: string; value: number; color: string }[]; size?: number; hideLegend?: boolean; centerValue?: string; centerLabel?: string;
+}) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  const radius = size / 2 - 18;
+  const circumference = 2 * Math.PI * radius;
+  const cx = size / 2, cy = size / 2;
+  let offset = 0;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap", justifyContent: "center" }}>
+      <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size, display: "block", flexShrink: 0 }}>
+        <g transform={`rotate(-90 ${cx} ${cy})`}>
+          <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--vw-color-gray-100)" strokeWidth={28} />
+          {data.map((d, i) => {
+            const frac = d.value / total;
+            const dash = frac * circumference;
+            const seg = (
+              <circle
+                key={i}
+                cx={cx} cy={cy} r={radius}
+                fill="none"
+                stroke={d.color}
+                strokeWidth={28}
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={-offset}
+              />
+            );
+            offset += dash;
+            return seg;
+          })}
+        </g>
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={22} fontWeight={600} fill="var(--vw-color-gray-900)" fontFamily="Inter, sans-serif">{centerValue ?? total}</text>
+        <text x={cx} y={cy + 16} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{centerLabel}</text>
+      </svg>
+      {!hideLegend && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {data.map((d, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--vw-color-gray-600)", fontFamily: "Inter, sans-serif" }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: d.color, flexShrink: 0 }} />
+              <span style={{ minWidth: 60 }}>{d.label}</span>
+              <span style={{ fontWeight: 600, color: "var(--vw-color-gray-900)" }}>{d.value}</span>
+              <span style={{ color: "var(--vw-color-gray-400)" }}>({Math.round((d.value / total) * 100)}%)</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Full pie (no center hole) with outside call-out labels + a legend row below
+// — distinct from SvgDonutChart, which keeps a hole and a total in the center.
+function SvgPieChart({ data, size = 240 }: { data: { label: string; value: number; color: string }[]; size?: number }) {
+  const total = data.reduce((s, d) => s + d.value, 0) || 1;
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 46;
+  const toRad = (a: number) => (a * Math.PI) / 180;
+  let angle = -90;
+  const wedges = data.map((d) => {
+    const frac = d.value / total;
+    const startAngle = angle;
+    angle += frac * 360;
+    const endAngle = angle;
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    const x1 = cx + r * Math.cos(toRad(startAngle)), y1 = cy + r * Math.sin(toRad(startAngle));
+    const x2 = cx + r * Math.cos(toRad(endAngle)), y2 = cy + r * Math.sin(toRad(endAngle));
+    const path = `M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${largeArc} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z`;
+    const midAngle = (startAngle + endAngle) / 2;
+    const lx1 = cx + (r + 4) * Math.cos(toRad(midAngle)), ly1 = cy + (r + 4) * Math.sin(toRad(midAngle));
+    const lx2 = cx + (r + 18) * Math.cos(toRad(midAngle)), ly2 = cy + (r + 18) * Math.sin(toRad(midAngle));
+    const lx = cx + (r + 22) * Math.cos(toRad(midAngle)), ly = cy + (r + 22) * Math.sin(toRad(midAngle));
+    return { ...d, path, pct: Math.round((frac * 1000)) / 10, lx1, ly1, lx2, ly2, lx, ly, faceRight: Math.cos(toRad(midAngle)) >= 0 };
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+      <svg viewBox={`0 0 ${size} ${size}`} style={{ width: size, height: size, display: "block", overflow: "visible" }}>
+        {wedges.map((w) => <path key={w.label} d={w.path} fill={w.color} stroke="white" strokeWidth={2} />)}
+        {wedges.map((w) => (
+          <g key={`${w.label}-lbl`}>
+            <line x1={w.lx1} y1={w.ly1} x2={w.lx2} y2={w.ly2} stroke="var(--vw-color-gray-300)" strokeWidth={1} />
+            <text x={w.lx} y={w.ly} textAnchor={w.faceRight ? "start" : "end"} dominantBaseline="middle" fontSize={11} fill="var(--vw-color-gray-700)" fontFamily="Inter, sans-serif">
+              {w.label}: {w.value}({w.pct}%)
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 16 }}>
+        {data.map((d) => (
+          <div key={d.label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--vw-color-gray-600)", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ width: 9, height: 9, borderRadius: "50%", background: d.color, flexShrink: 0 }} /> {d.label}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1263,6 +1566,53 @@ function KpiTile({ icon: Icon, tint, tintBg, label, value, sub, subTone }: {
   );
 }
 
+// A single card holding several label/value stats side by side — e.g. New /
+// In progress / Completed — distinct from KpiTile, which is one card per stat.
+function StatRowCard({ title, stats }: { title: string; stats: { label: string; value: string | number }[] }) {
+  return (
+    <div className="vw-card-section" style={{ height: "100%" }}>
+      <div className="vw-card-title-sm" style={{ marginBottom: 16 }}>{title}</div>
+      <div className="vw-flex vw-gap-lg vw-wrap">
+        {stats.map((s) => (
+          <div key={s.label} style={{ minWidth: 70 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--vw-color-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--vw-color-gray-900)" }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Five-item treemap laid out as three columns — a tall cell on the left, and
+// two shorter stacked cells (sized by value) in each of the other two
+// columns. Matches the specific 1/2/2 split the source product renders for
+// a 5-way breakdown, rather than a general squarify algorithm.
+function Treemap5({ data, height = 260 }: { data: { label: string; value: number; color: string }[]; height?: number }) {
+  const [a, b, c, d, e] = data;
+  const col2Total = b.value + d.value, col3Total = c.value + e.value;
+  const totalW = a.value + col2Total + col3Total || 1;
+  const cellStyle = (item: { label: string; value: number; color: string }): ReactNode => (
+    <div style={{ background: item.color, color: "#fff", padding: 14, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+      <div style={{ fontSize: 20, fontWeight: 700 }}>{item.value}</div>
+      <div style={{ fontSize: 12, lineHeight: 1.3 }}>{item.label}</div>
+    </div>
+  );
+  return (
+    <div style={{ display: "flex", gap: 2, height, borderRadius: 10, overflow: "hidden" }}>
+      <div style={{ flex: a.value / totalW }}>{cellStyle(a)}</div>
+      <div style={{ flex: col2Total / totalW, display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ flex: b.value / col2Total }}>{cellStyle(b)}</div>
+        <div style={{ flex: d.value / col2Total }}>{cellStyle(d)}</div>
+      </div>
+      <div style={{ flex: col3Total / totalW, display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ flex: c.value / col3Total }}>{cellStyle(c)}</div>
+        <div style={{ flex: e.value / col3Total }}>{cellStyle(e)}</div>
+      </div>
+    </div>
+  );
+}
+
 function HighlightCard({ tone, icon: Icon, title, sub }: { tone: "success" | "warning"; icon: typeof CheckCircle2; title: string; sub: string }) {
   const bg = tone === "success" ? "var(--vw-color-emerald-25)" : "var(--vw-color-amber-25)";
   const border = tone === "success" ? "var(--vw-color-emerald-200)" : "var(--vw-color-amber-200)";
@@ -1280,11 +1630,14 @@ function HighlightCard({ tone, icon: Icon, title, sub }: { tone: "success" | "wa
   );
 }
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+function ChartCard({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <div className="vw-card-section">
-      <div className="vw-card-title-sm">{title}</div>
-      <div className="vw-card-description" style={{ marginBottom: 14 }}>{subtitle}</div>
+      <div className="vw-flex vw-items-center vw-justify-between vw-gap-sm" style={{ marginBottom: subtitle ? 2 : 12 }}>
+        <div className="vw-card-title-sm">{title}</div>
+        {action}
+      </div>
+      {subtitle && <div className="vw-card-description" style={{ marginBottom: 14 }}>{subtitle}</div>}
       {children}
     </div>
   );
@@ -1330,9 +1683,285 @@ const DASHBOARD_DETAIL_WIDGETS = [
   { name: "Top data sources", desc: "Bar chart — which sources feed this dashboard's widgets" },
 ];
 
-function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+// ── Problem Management Dashboard (dl1) — curated content matching the real
+// ITSM "Problem management dashboard" layout: 4 KPIs, a severity donut and
+// category bar, an impacted-services heatmap paired with an open-problems
+// table, and an aging chart paired with an incident-volume table. Numbers
+// below are placeholder — same shape as the live dashboard, not its data. ──
+const PM_SUBTITLE = "Provides an overview of problem management metrics, including problem status, priority, trends, and resolution progress.";
+const PM_SUMMARY = { identified: 64, resolved: 26, pending: 14, underInvestigation: 24 };
+const PM_SEVERITY = [
+  { label: "Critical", value: 6, color: "var(--vw-color-red-500)" },
+  { label: "High", value: 27, color: "var(--vw-color-orange-500)" },
+  { label: "Medium", value: 9, color: "var(--vw-color-yellow-500)" },
+  { label: "Low", value: 7, color: "var(--vw-color-blue-500)" },
+];
+const PM_CATEGORY = [
+  { label: "Network/platform", value: 13, color: "var(--vw-color-blue-500)" },
+  { label: "Application", value: 8, color: "var(--vw-color-blue-500)" },
+  { label: "Monitoring", value: 6, color: "var(--vw-color-blue-500)" },
+  { label: "Security", value: 3, color: "var(--vw-color-blue-500)" },
+];
+const PM_IMPACTED_SERVICES_COLS = ["Extensive", "Significant", "Moderate", "Minor"];
+const PM_IMPACTED_SERVICES_ROWS = [
+  { label: "Network provisioning", values: [17, 5, 1, 4] },
+  { label: "Roaming management", values: [7, 5, 2, 6] },
+  { label: "SMS gateway service", values: [6, 3, 0, 3] },
+  { label: "Mobile data", values: [5, 6, 1, 2] },
+  { label: "Naming service", values: [3, 2, 0, 5] },
+  { label: "Other", values: [6, 1, 0, 4] },
+];
+const PM_OPEN_PROBLEMS: TicketRow[] = [
+  { status: "New", statusTone: "info", title: "Recurring VPN authentication failures", value: "High", date: "19-Jul-2026" },
+  { status: "New", statusTone: "info", title: "Corporate email service disruption", value: "High", date: "03-Jun-2026" },
+  { status: "New", statusTone: "info", title: "Delayed SIM provisioning for new subscribers", value: "High", date: "11-Jun-2026" },
+  { status: "New", statusTone: "info", title: "Intermittent 4G/5G outage — northern region", value: "High", date: "15-Jun-2026" },
+  { status: "New", statusTone: "info", title: "Billing synchronization lag", value: "High", date: "17-Jun-2026" },
+];
+const PM_AGING = [
+  { label: "0-7 days", value: 6 },
+  { label: "7-15 days", value: 2 },
+  { label: "15-30 days", value: 7 },
+  { label: "30+ days", value: 24 },
+];
+const PM_INCIDENT_VOLUME: TicketRow[] = [
+  { status: "New", statusTone: "info", title: "Intermittent 4G/5G outage — northern region", value: "16", date: "15-Jun-2026" },
+  { status: "New", statusTone: "info", title: "Billing synchronization lag", value: "5", date: "17-Jun-2026" },
+  { status: "Assigned", statusTone: "purple", title: "Slow response in product search", value: "5", date: "27-Apr-2026" },
+  { status: "New", statusTone: "info", title: "Fiber backhaul link instability", value: "4", date: "14-Jan-2026" },
+  { status: "New", statusTone: "info", title: "Network monitoring alert storm", value: "3", date: "29-May-2026" },
+];
+const PM_DETAIL_WIDGETS = [
+  { name: "Total identified problems", desc: "KPI tile — problems identified in the current period" },
+  { name: "Total resolved", desc: "KPI tile — problems closed out" },
+  { name: "Pending", desc: "KPI tile — problems awaiting action" },
+  { name: "Under investigation", desc: "KPI tile — problems actively being triaged" },
+  { name: "Problem by severity", desc: "Donut chart — Critical / High / Medium / Low split" },
+  { name: "Problem category", desc: "Bar chart — open problems grouped by category" },
+  { name: "Top impacted services", desc: "Heatmap table — service vs. impact severity" },
+  { name: "Open problems", desc: "Table — open problems by status, severity and report date" },
+  { name: "Aging", desc: "Horizontal bar chart — open problems by time since reported" },
+  { name: "Problems by incident volume", desc: "Table — top problems by incident count" },
+];
+
+// Shared with WidgetPreview's "wl2" widget (Incident Management Dashboard's
+// own "Incident by categories" widget) — kept as one source of truth.
+const INCIDENT_CATEGORY_DATA = [
+  { label: "Internet connectivity", value: 28 },
+  { label: "Vpn connectivity", value: 14 },
+  { label: "Network infrastructure services", value: 13 },
+  { label: "Sim card services", value: 8 },
+  { label: "Data catalog governance violation", value: 5 },
+  { label: "Network performance issues", value: 3 },
+  { label: "Sim network issues", value: 2 },
+  { label: "Voip services", value: 2 },
+  { label: "Isp outage", value: 2 },
+  { label: "Mpls", value: 1 },
+];
+function truncateLabel(s: string, n: number) { return s.length > n ? `${s.slice(0, n - 1)}…` : s; }
+
+// ── Incident Management Dashboard (dl2) — curated content matching the real
+// ITSM "Incident management dashboard" layout: 6 KPIs, a severity pie and
+// category bar, then an age bar, a priority donut, and a status progress-bar
+// list. Numbers below are placeholder — same shape, not the live data. ──
+const IM_SUBTITLE = "Monitors key incident management metrics, including incident status, severity, category, SLA performance, and resolution efficiency, through interactive visualizations.";
+const IM_SUMMARY = { open: 76, newT24h: 7, critical: 16, slaBreached: 41, slaCompliance: "1.8%", mttr: "-15h" };
+const IM_SEVERITY = [
+  { label: "Critical", value: 16, color: "var(--vw-color-red-500)" },
+  { label: "High", value: 39, color: "var(--vw-color-orange-500)" },
+  { label: "Medium", value: 13, color: "var(--vw-color-yellow-500)" },
+  { label: "Low", value: 3, color: "var(--vw-color-emerald-500)" },
+];
+const IM_CATEGORY = INCIDENT_CATEGORY_DATA.map((d) => ({ label: truncateLabel(d.label, 7), value: d.value, color: "var(--vw-color-blue-500)" }));
+const IM_AGING = [
+  { label: "0-4h", value: 2, color: "var(--vw-color-blue-500)" },
+  { label: "4-8h", value: 4, color: "var(--vw-color-blue-500)" },
+  { label: "8-12h", value: 9, color: "var(--vw-color-blue-500)" },
+  { label: ">12h", value: 68, color: "var(--vw-color-blue-500)" },
+];
+const IM_PRIORITY = [
+  { label: "High", value: 51, color: "var(--vw-color-orange-500)" },
+  { label: "Medium", value: 15, color: "var(--vw-color-yellow-500)" },
+  { label: "Low", value: 5, color: "var(--vw-color-emerald-500)" },
+];
+const IM_STATUS = [
+  { label: "New", pct: 88.5, color: "var(--vw-color-blue-500)" },
+  { label: "Resolved", pct: 5.6, color: "var(--vw-color-orange-500)" },
+  { label: "In progress", pct: 2.9, color: "var(--vw-color-emerald-500)" },
+  { label: "Closed", pct: 1.7, color: "var(--vw-color-gray-400)" },
+  { label: "Cancelled", pct: 1.3, color: "var(--vw-color-red-400)" },
+];
+const IM_DETAIL_WIDGETS = [
+  { name: "Open incidents", desc: "KPI tile — currently open incidents" },
+  { name: "New (T24H)", desc: "KPI tile — incidents opened in the last 24 hours" },
+  { name: "Critical incidents", desc: "KPI tile — open incidents at critical severity" },
+  { name: "SLA breached", desc: "KPI tile — incidents that missed their SLA" },
+  { name: "SLA compliance", desc: "KPI tile — share of incidents resolved within SLA" },
+  { name: "MTTR", desc: "KPI tile — mean time to resolve" },
+  { name: "Incident severity distribution", desc: "Pie chart — Critical / High / Medium / Low split" },
+  { name: "Incident by category", desc: "Bar chart — incidents grouped by category" },
+  { name: "Incident age distribution", desc: "Bar chart — open incidents by time since reported" },
+  { name: "Incident by priority", desc: "Donut chart — High / Medium / Low split" },
+  { name: "Status overview", desc: "Progress bars — incidents by status, as a share of total" },
+];
+
+// ── Procurement Dashboard (dl3) — curated content matching the real SCM
+// "Procurement dashboard" layout: 4 KPIs, a purchase trend area chart paired
+// with a togglable purchases donut, a pending-delivery table paired with a
+// togglable demand-by-PR bar, an unapproved-PR-ageing donut paired with an
+// active-RFQs table, and a warehouse column chart paired with a top-vendors
+// bar. Numbers below are placeholder — same shape, not the live data. ──
+const PR_SUBTITLE = "Dashboard providing key procurement metrics and insights";
+const PR_SUMMARY = { totalPurchases: "0.00", rfqResponseRate: "68.0%", poIssued: 94, savingsAchieved: "₹0.00" };
+const PR_TREND_MONTHS = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
+const PR_TREND_VALUES = [500_000, 900_000, 18_000_000, 700_000, 600_000, 800_000, 1_200_000, 900_000, 500_000, 700_000, 9_000_000, 96_000_000];
+const PR_PURCHASES_TOTAL_LABEL = "51480.0 K";
+const PR_PURCHASES_CATEGORY = [
+  { label: "Fiber", value: 40, color: "var(--vw-color-orange-500)" },
+  { label: "Finished Goods", value: 22, color: "var(--vw-color-indigo-500)" },
+  { label: "Others", value: 12, color: "var(--vw-color-cyan-500)" },
+  { label: "Service", value: 8, color: "var(--vw-color-gray-400)" },
+];
+const PR_PURCHASES_TYPES = [
+  { label: "Raw material", value: 34, color: "var(--vw-color-orange-500)" },
+  { label: "Capex", value: 26, color: "var(--vw-color-indigo-500)" },
+  { label: "Consumables", value: 14, color: "var(--vw-color-cyan-500)" },
+  { label: "Opex", value: 8, color: "var(--vw-color-gray-400)" },
+];
+const PR_PO_PENDING = [
+  [<CodeLink>PO-0512</CodeLink>, "Purchase order for network switches", "1,200", "18-Nov-26", "180M"],
+  [<CodeLink>PO-0328</CodeLink>, "PO for backup generator units", "4", "—", "42M"],
+  [<CodeLink>PO-0447</CodeLink>, "Purchase order for conduit supply", "3", "09-Sep-25", "28M"],
+];
+const PR_DEMAND_MATERIAL = [
+  { label: "Splice closure kit", value: 24 },
+  { label: "CRM license renewal", value: 17 },
+  { label: "Patch panel (1:24)", value: 12 },
+  { label: "Manhole cover", value: 8 },
+  { label: "AST-NET-RTR-004", value: 6 },
+];
+const PR_DEMAND_CATEGORY = [
+  { label: "Networking", value: 29 },
+  { label: "Software", value: 17 },
+  { label: "Civil works", value: 12 },
+  { label: "Facilities", value: 9 },
+];
+const PR_DEMAND_TYPES = [
+  { label: "Routine", value: 31 },
+  { label: "Urgent", value: 18 },
+  { label: "Bulk", value: 11 },
+  { label: "Adhoc", value: 7 },
+];
+const PR_UNAPPROVED_TOTAL = 6;
+const PR_UNAPPROVED_AGING = [
+  { label: "More than 20 days", value: 2, color: "var(--vw-color-indigo-500)" },
+  { label: "16-20 days", value: 1, color: "var(--vw-color-blue-500)" },
+  { label: "11-15 days", value: 1, color: "var(--vw-color-cyan-500)" },
+  { label: "6-10 days", value: 1, color: "var(--vw-color-violet-500)" },
+  { label: "0-5 days", value: 1, color: "var(--vw-color-emerald-500)" },
+];
+const PR_ACTIVE_RFQS = [
+  [<CodeLink>RFQ-0512</CodeLink>, "Network switch supply quotation", "2", "14-Mar-26"],
+  [<CodeLink>RFQ-0044</CodeLink>, "Inquiry for backup generator units", "1", "—"],
+  [<CodeLink>RFQ-0201</CodeLink>, "Patch panel rental RFQ", "3", "22-Feb-26"],
+  [<CodeLink>RFQ-0117</CodeLink>, "RFQ for EV fleet charging equipment", "2", "05-Dec-25"],
+  [<CodeLink>RFQ-0350</CodeLink>, "Supply of ruggedized laptops RFQ", "4", "19-Aug-25"],
+];
+const PR_WAREHOUSES = [
+  { label: "Pune warehouse", value: 118_000_000, color: "var(--vw-color-blue-500)" },
+  { label: "Nagpur warehouse", value: 96_000_000, color: "var(--vw-color-indigo-500)" },
+  { label: "Chennai warehouse", value: 74_000_000, color: "var(--vw-color-violet-500)" },
+  { label: "Kochi warehouse", value: 52_000_000, color: "var(--vw-color-orange-500)" },
+  { label: "Denver warehouse", value: 44_000_000, color: "var(--vw-color-cyan-500)" },
+  { label: "Manesar warehouse", value: 36_000_000, color: "var(--vw-color-blue-500)" },
+  { label: "Bhiwandi warehouse", value: 28_000_000, color: "var(--vw-color-indigo-500)" },
+  { label: "Kutch region warehouse", value: 20_000_000, color: "var(--vw-color-violet-500)" },
+  { label: "Orion warehouse", value: 14_000_000, color: "var(--vw-color-orange-500)" },
+].map((w) => ({ ...w, label: truncateLabel(w.label, 5) }));
+const PR_TOP_VENDORS = [
+  { label: "Orion Components Pvt Ltd", value: 118_000_000 },
+  { label: "Meridian Cable Group", value: 96_000_000 },
+  { label: "Vendor Assist Inc", value: 54_000_000 },
+  { label: "Continental Grid", value: 22_000_000 },
+  { label: "Falcon Corp", value: 12_000_000 },
+];
+const PR_DETAIL_WIDGETS = [
+  { name: "Total purchases", desc: "KPI tile — total purchase spend in the period" },
+  { name: "RFQ response rate", desc: "KPI tile — share of RFQs that received a vendor response" },
+  { name: "PO issued", desc: "KPI tile — purchase orders issued in the period" },
+  { name: "Savings achieved", desc: "KPI tile — cost savings negotiated against list price" },
+  { name: "Purchase trend", desc: "Area chart — expected revenue by month" },
+  { name: "Purchases", desc: "Donut chart — spend by category or type, togglable" },
+  { name: "PO issued with pending delivery", desc: "Table — open purchase orders awaiting delivery" },
+  { name: "Demand by PR", desc: "Bar chart — purchase requests by category, type, or material" },
+  { name: "Unapproved PR ageing", desc: "Donut chart — unapproved PRs by time since raised" },
+  { name: "Active RFQs", desc: "Table — open RFQs, their quote count, and last submission date" },
+  { name: "Orders by warehouses", desc: "Bar chart — order amount by receiving warehouse" },
+  { name: "Top vendors", desc: "Bar chart — spend by vendor" },
+];
+
+// ── Trial Dashboard (dl4) — curated content matching the real FiberNeo trial-
+// management dashboard layout: a stacked column chart paired with two stat
+// cards, a grouped horizontal bar paired with a treemap, and a trend line
+// paired with a donut. Vendor/domain names are the real generic industry
+// terms; counts below are placeholder — same shape, not the live data. ──
+const TR_SUBTITLE = "Trial execution overview — domain, vendor, and reason breakdowns for network equipment trials.";
+const TR_DATES = ["15-Jul-2026", "16-Jul-2026", "17-Jul-2026", "18-Jul-2026", "19-Jul-2026", "20-Jul-2026", "21-Jul-2026"];
+const TR_DOMAIN_SERIES = [
+  { name: "TRANSPORT", color: "var(--vw-color-cyan-400)", values: [4, 2, 4, 2, 3, 7, 3] },
+  { name: "RAN", color: "var(--vw-color-blue-600)", values: [3, 2, 2, 7, 2, 3, 0] },
+];
+const TR_OVERVIEW_STATS = [
+  { label: "New", value: 34 },
+  { label: "Inprogress", value: 4 },
+  { label: "Completed", value: 25 },
+];
+const TR_PENDING_STATS = [
+  { label: "Today", value: 6 },
+  { label: "This week", value: 24 },
+  { label: "This month", value: 30 },
+];
+const TR_VENDOR_SERIES = [
+  { name: "NOKIA", color: "var(--vw-color-blue-600)", values: [3, 3, 2, 4, 3, 3, 1] },
+  { name: "CISCO", color: "var(--vw-color-orange-500)", values: [4, 4, 2, 4, 2, 1, 8] },
+  { name: "SAMSUNG", color: "var(--vw-color-cyan-400)", values: [0, 0, 0, 4, 0, 0, 0] },
+];
+const TR_REASONS = [
+  { label: "Performance optimization", value: 18, color: "var(--vw-color-cyan-400)" },
+  { label: "User-experience improvement", value: 16, color: "var(--vw-color-blue-500)" },
+  { label: "Failure analysis and recovery", value: 13, color: "var(--vw-color-violet-500)" },
+  { label: "Geographical variation", value: 7, color: "var(--vw-color-amber-500)" },
+  { label: "Service expansion or diversification", value: 6, color: "var(--vw-color-orange-500)" },
+];
+const TR_TREND_DATES = ["21-Jul", "22-Jul", "23-Jul", "24-Jul", "25-Jul", "26-Jul", "27-Jul", "28-Jul"];
+const TR_TREND_SERIES = [
+  { name: "Failure", color: "var(--vw-color-cyan-400)", values: [2, 2, 1, 1, 2, 1, 5, 1] },
+  { name: "Success", color: "var(--vw-color-blue-600)", values: [1, 4, 2, 1, 2, 1, 1, 0] },
+];
+const TR_PRIORITY = [
+  { label: "High", value: 8, color: "var(--vw-color-red-500)" },
+  { label: "Low", value: 42, color: "var(--vw-color-blue-500)" },
+  { label: "Medium", value: 9, color: "var(--vw-color-emerald-500)" },
+];
+const TR_DETAIL_WIDGETS = [
+  { name: "Domain wise trials distribution", desc: "Stacked column chart — trials by domain (RAN/Transport) over the last 7 days" },
+  { name: "Overview", desc: "Stat card — trials new, in progress, and completed in the last 30 days" },
+  { name: "Trials pending execution", desc: "Stat card — trials pending today, this week, and this month" },
+  { name: "Vendor wise trials distribution", desc: "Grouped bar chart — trials by vendor over the last 7 days" },
+  { name: "Reason wise trial distribution", desc: "Treemap — trials grouped by reason" },
+  { name: "Trials result trend", desc: "Line chart — success vs. failure over the last 7 days" },
+  { name: "Priority wise trials distribution", desc: "Donut chart — High / Medium / Low split over the last 30 days" },
+];
+
+function DashboardPreview({ id, title, approval, seed, onExplainAi, onSubmit, onDiscard }: {
+  id?: string; title: string; approval?: ApprovalStatus; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
 }) {
+  const isProblemMgmt = id === "dl1";
+  const isIncidentMgmt = id === "dl2";
+  const isProcurement = id === "dl3";
+  const isTrialDashboard = id === "dl4";
+  const [purchasesView, setPurchasesView] = useState<"Category" | "Types">("Category");
+  const [demandView, setDemandView] = useState<"Category" | "Types" | "Material">("Material");
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const isApproved = approval === "Approved";
@@ -1384,7 +2013,7 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
                 <span className="vw-page-title">{title}</span>
                 {approval && <span className={`vw-chip ${STATUS_CHIP[approval]}`} style={{ fontSize: 11 }}>{approval}</span>}
               </div>
-              <div className="vw-page-description" style={{ marginTop: 2 }}>{DASHBOARD_SUBTITLE}</div>
+              <div className="vw-page-description" style={{ marginTop: 2 }}>{isProblemMgmt ? PM_SUBTITLE : isIncidentMgmt ? IM_SUBTITLE : isProcurement ? PR_SUBTITLE : isTrialDashboard ? TR_SUBTITLE : DASHBOARD_SUBTITLE}</div>
             </div>
             <div className="vw-flex vw-gap-xs" style={{ flexShrink: 0 }}>
               <button type="button" onClick={onExplainAi} className="nst-btn nst-btn--sm">
@@ -1410,6 +2039,190 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
           )}
         </div>
 
+        {isProblemMgmt ? (
+        <>
+        {/* KPI row */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <KpiTile icon={BarChart2} tint="var(--vw-color-blue-600)" tintBg="var(--vw-color-blue-50)" label="Total identified problems" value={String(PM_SUMMARY.identified)} />
+          <KpiTile icon={CheckCircle2} tint="var(--vw-color-emerald-600)" tintBg="var(--vw-color-emerald-50)" label="Total resolved" value={String(PM_SUMMARY.resolved)} />
+          <KpiTile icon={Clock} tint="var(--vw-color-amber-600)" tintBg="var(--vw-color-amber-50)" label="Pending" value={String(PM_SUMMARY.pending)} />
+          <KpiTile icon={Activity} tint="var(--vw-color-red-600)" tintBg="var(--vw-color-red-50)" label="Under investigation" value={String(PM_SUMMARY.underInvestigation)} />
+        </div>
+
+        {/* Row 2 — severity donut · category bar */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+          <ChartCard title="Problem by severity" subtitle="Open problems grouped by severity">
+            <SvgDonutChart data={PM_SEVERITY} size={200} />
+          </ChartCard>
+          <ChartCard title="Problem category" subtitle="Open problems grouped by category">
+            <SvgBarChart data={PM_CATEGORY} height={200} />
+          </ChartCard>
+        </div>
+
+        {/* Row 3 — impacted-services heatmap · open problems */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Top impacted services" subtitle="Services by impact severity">
+            <HeatmapTable cols={PM_IMPACTED_SERVICES_COLS} rows={PM_IMPACTED_SERVICES_ROWS} />
+          </ChartCard>
+          <ChartCard title="Open problems" subtitle="Currently open, most recent first">
+            <TicketTable valueLabel="Severity" valueTone="orange" rows={PM_OPEN_PROBLEMS} />
+          </ChartCard>
+        </div>
+
+        {/* Row 4 — aging · incident volume */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Aging" subtitle="Open problems by time since reported">
+            <SvgHorizontalBarChart data={PM_AGING} height={220} xAxisLabel="Problem count" yAxisLabel="Ageing" />
+          </ChartCard>
+          <ChartCard title="Problems by incident volume" subtitle="Top problems by incident count">
+            <TicketTable valueLabel="Incident count" rows={PM_INCIDENT_VOLUME} />
+          </ChartCard>
+        </div>
+        </>
+        ) : isIncidentMgmt ? (
+        <>
+        {/* KPI row */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
+          <KpiTile icon={AlertCircle} tint="var(--vw-color-amber-600)" tintBg="var(--vw-color-amber-50)" label="Open incidents" value={String(IM_SUMMARY.open)} />
+          <KpiTile icon={Activity} tint="var(--vw-color-blue-600)" tintBg="var(--vw-color-blue-50)" label="New (T24H)" value={String(IM_SUMMARY.newT24h)} />
+          <KpiTile icon={AlertTriangle} tint="var(--vw-color-red-600)" tintBg="var(--vw-color-red-50)" label="Critical incidents" value={String(IM_SUMMARY.critical)} />
+          <KpiTile icon={XCircle} tint="var(--vw-color-red-600)" tintBg="var(--vw-color-red-50)" label="SLA breached" value={String(IM_SUMMARY.slaBreached)} />
+          <KpiTile icon={TrendingUp} tint="var(--vw-color-emerald-600)" tintBg="var(--vw-color-emerald-50)" label="SLA compliance" value={IM_SUMMARY.slaCompliance} />
+          <KpiTile icon={Clock} tint="var(--vw-color-purple-600)" tintBg="var(--vw-color-purple-50)" label="MTTR" value={IM_SUMMARY.mttr} />
+        </div>
+
+        {/* Row 2 — severity pie · category bar */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Incident severity distribution" subtitle="Breakdown of incidents by severity">
+            <SvgPieChart data={IM_SEVERITY} size={240} />
+          </ChartCard>
+          <ChartCard title="Incident by category" subtitle="Breakdown of incidents by category">
+            <SvgBarChart data={IM_CATEGORY} height={240} yAxisLabel="Count" />
+          </ChartCard>
+        </div>
+
+        {/* Row 3 — age bar · priority donut · status progress */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+          <ChartCard title="Incident age distribution" subtitle="Breakdown of incidents by ageing">
+            <SvgBarChart data={IM_AGING} height={220} xAxisLabel="Ageing" />
+          </ChartCard>
+          <ChartCard title="Incident by priority" subtitle="Breakdown of incidents by priority">
+            <SvgDonutChart data={IM_PRIORITY} size={200} />
+          </ChartCard>
+          <ChartCard title="Status overview" subtitle="Breakdown of incidents by status">
+            <ProgressBarList rows={IM_STATUS} />
+          </ChartCard>
+        </div>
+        </>
+        ) : isProcurement ? (
+        <>
+        {/* KPI row */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <KpiTile icon={ShoppingCart} tint="var(--vw-color-blue-600)" tintBg="var(--vw-color-blue-50)" label="Total purchases" value={PR_SUMMARY.totalPurchases} />
+          <KpiTile icon={MessageSquare} tint="var(--vw-color-emerald-600)" tintBg="var(--vw-color-emerald-50)" label="RFQ response rate" value={PR_SUMMARY.rfqResponseRate} />
+          <KpiTile icon={FileText} tint="var(--vw-color-purple-600)" tintBg="var(--vw-color-purple-50)" label="PO issued" value={String(PR_SUMMARY.poIssued)} />
+          <KpiTile icon={TrendingDown} tint="var(--vw-color-emerald-600)" tintBg="var(--vw-color-emerald-50)" label="Savings achieved" value={PR_SUMMARY.savingsAchieved} />
+        </div>
+
+        {/* Row 2 — purchase trend area · purchases donut (togglable) */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Purchase trend (TTM)">
+            <SvgAreaLineChart
+              series={[{ name: "Expected revenue", color: "var(--vw-color-indigo-500)", values: PR_TREND_VALUES }]}
+              labels={PR_TREND_MONTHS} height={260} xAxisLabel="Months" yAxisLabel="Expected revenue" curve="linear"
+            />
+          </ChartCard>
+          <ChartCard title="Purchases" action={<Segmented options={["Category", "Types"]} value={purchasesView} onChange={(v) => setPurchasesView(v as typeof purchasesView)} />}>
+            <SvgDonutChart
+              data={purchasesView === "Category" ? PR_PURCHASES_CATEGORY : PR_PURCHASES_TYPES}
+              size={190} hideLegend centerValue={PR_PURCHASES_TOTAL_LABEL}
+            />
+            <div className="vw-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+              {(purchasesView === "Category" ? PR_PURCHASES_CATEGORY : PR_PURCHASES_TYPES).map((d) => (
+                <div key={d.label} className="vw-flex vw-items-center vw-gap-xs" style={{ fontSize: 12, color: "var(--vw-color-gray-600)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} /> {d.label}
+                </div>
+              ))}
+            </div>
+            <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: "var(--vw-color-gray-400)" }}>▲ 1/2 ▼</div>
+          </ChartCard>
+        </div>
+
+        {/* Row 3 — PO pending delivery table · demand by PR (togglable) */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="PO issued with pending delivery (TTM)">
+            <MiniDataTable cols={["Code", "Names", "Quantity", "Exp. delivery date", "Amount"]} rows={PR_PO_PENDING} />
+          </ChartCard>
+          <ChartCard title="Demand by PR" action={<Segmented options={["Category", "Types", "Material"]} value={demandView} onChange={(v) => setDemandView(v as typeof demandView)} />}>
+            <SvgHorizontalBarChart
+              data={demandView === "Material" ? PR_DEMAND_MATERIAL : demandView === "Category" ? PR_DEMAND_CATEGORY : PR_DEMAND_TYPES}
+              height={220} xAxisLabel="Purchase requests" yAxisLabel="Names"
+            />
+          </ChartCard>
+        </div>
+
+        {/* Row 4 — unapproved-PR ageing donut · active RFQs table */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Unapproved PR ageing (TTM)">
+            <SvgDonutChart data={PR_UNAPPROVED_AGING} size={190} hideLegend centerValue={String(PR_UNAPPROVED_TOTAL)} centerLabel="Unapproved PRs" />
+            <div className="vw-grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+              {PR_UNAPPROVED_AGING.map((d) => (
+                <div key={d.label} className="vw-flex vw-items-center vw-gap-xs" style={{ fontSize: 12, color: "var(--vw-color-gray-600)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: d.color, flexShrink: 0 }} /> {d.label}
+                </div>
+              ))}
+            </div>
+          </ChartCard>
+          <ChartCard title="Active RFQs (TTM)">
+            <MiniDataTable cols={["Code", "Name", "Quotes", "Last submission date"]} rows={PR_ACTIVE_RFQS} />
+          </ChartCard>
+        </div>
+
+        {/* Row 5 — orders by warehouse · top vendors */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Orders by warehouses (TTM)">
+            <SvgBarChart data={PR_WAREHOUSES} height={240} xAxisLabel="Warehouses" />
+          </ChartCard>
+          <ChartCard title="Top vendors (TTM)">
+            <SvgHorizontalBarChart data={PR_TOP_VENDORS} height={220} xAxisLabel="Amount" yAxisLabel="Vendors" />
+          </ChartCard>
+        </div>
+        </>
+        ) : isTrialDashboard ? (
+        <>
+        {/* Row 1 — domain stacked column · overview & pending stat cards */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "2fr 1fr" }}>
+          <ChartCard title="Domain wise trials distribution (T7D)">
+            <SvgStackedColumnChart categories={TR_DATES} series={TR_DOMAIN_SERIES} height={260} />
+          </ChartCard>
+          <div className="vw-flex vw-flex-col vw-gap-md">
+            <StatRowCard title="Overview (T30D)" stats={TR_OVERVIEW_STATS} />
+            <StatRowCard title="Trials pending execution" stats={TR_PENDING_STATS} />
+          </div>
+        </div>
+
+        {/* Row 2 — vendor grouped bar · reason treemap */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Vendor wise trials distribution (T7D)">
+            <SvgHorizontalGroupedBarChart categories={TR_DATES} series={TR_VENDOR_SERIES} height={260} />
+          </ChartCard>
+          <ChartCard title="Reason wise trial distribution">
+            <Treemap5 data={TR_REASONS} height={260} />
+          </ChartCard>
+        </div>
+
+        {/* Row 3 — result trend line · priority donut */}
+        <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
+          <ChartCard title="Trials result trend (T7D)">
+            <SvgAreaLineChart series={TR_TREND_SERIES} labels={TR_TREND_DATES} height={240} curve="smooth" />
+          </ChartCard>
+          <ChartCard title="Priority wise trials distribution (T30D)">
+            <SvgDonutChart data={TR_PRIORITY} size={200} />
+          </ChartCard>
+        </div>
+        </>
+        ) : (
+        <>
         {/* KPI row */}
         <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <KpiTile icon={Database} tint="var(--vw-color-blue-600)" tintBg="var(--vw-color-blue-50)" label="Total records" value={totalRecords.toLocaleString()} sub="Across every widget on this dashboard" />
@@ -1454,6 +2267,8 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
             <SvgBarChart data={dataSourceBars} height={200} />
           </ChartCard>
         </div>
+        </>
+        )}
       </div>
 
       {/* Details — right panel, not inline */}
@@ -1466,7 +2281,7 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
             </button>
           </div>
           <div className="vw-flex vw-flex-col vw-gap-xs">
-            {DASHBOARD_DETAIL_WIDGETS.map((w) => (
+            {(isProblemMgmt ? PM_DETAIL_WIDGETS : isIncidentMgmt ? IM_DETAIL_WIDGETS : isProcurement ? PR_DETAIL_WIDGETS : isTrialDashboard ? TR_DETAIL_WIDGETS : DASHBOARD_DETAIL_WIDGETS).map((w) => (
               <div key={w.name} className="vw-card-child-shaded">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--vw-color-gray-800)" }}>{w.name}</div>
                 <div className="vw-card-description" style={{ fontSize: 11.5 }}>{w.desc}</div>
@@ -1481,21 +2296,130 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
 
 // Shared small data-grid — used by the widget preview's "Table" type and by
 // the dataset preview's live query result, so both render identically.
-function MiniDataTable({ cols, rows }: { cols: string[]; rows: string[][] }) {
+function MiniDataTable({ cols, rows, scrollX }: { cols: string[]; rows: ReactNode[][]; scrollX?: boolean }) {
   return (
-    <div style={{ overflow: "hidden", borderRadius: 10, border: "1px solid var(--vw-color-slate-200)" }}>
+    <div style={{ overflow: scrollX ? "auto" : "hidden", borderRadius: 10, border: "1px solid var(--vw-color-slate-200)" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
         <thead style={{ background: "var(--vw-color-gray-50)" }}>
-          <tr>{cols.map((c) => <th key={c} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11.5, fontWeight: 500, color: "var(--vw-color-gray-500)" }}>{c}</th>)}</tr>
+          <tr>{cols.map((c) => <th key={c} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11.5, fontWeight: 500, color: "var(--vw-color-gray-500)", whiteSpace: scrollX ? "nowrap" : undefined }}>{c}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} style={{ borderTop: "1px solid var(--vw-color-slate-200)" }}>
-              {row.map((v, j) => <td key={j} style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--vw-color-gray-700)" }}>{v}</td>)}
+              {row.map((v, j) => <td key={j} style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--vw-color-gray-700)", whiteSpace: scrollX ? "nowrap" : undefined }}>{v}</td>)}
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Blue link-styled cell — used for row-identifier columns (PO/RFQ codes) in
+// MiniDataTable, matching the clickable-looking code links in the real UI.
+function CodeLink({ children }: { children: ReactNode }) {
+  return <span style={{ color: "var(--vw-color-blue-600)", fontWeight: 500 }}>{children}</span>;
+}
+
+// Segmented pill toggle — e.g. switching a chart between "Category"/"Types".
+function Segmented({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: "inline-flex", flexShrink: 0, borderRadius: 8, background: "var(--vw-color-gray-100)", padding: 2, gap: 2 }}>
+      {options.map((o) => (
+        <button
+          key={o} type="button" onClick={() => onChange(o)}
+          style={{
+            padding: "4px 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, border: "none", cursor: "pointer",
+            background: o === value ? "var(--vw-color-gray-900)" : "transparent",
+            color: o === value ? "#fff" : "var(--vw-color-gray-600)",
+          }}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Blue-intensity heatmap grid — row labels in the first column, column labels
+// as a muted footer row (matches the production Problem Management dashboard,
+// which puts the impact-level axis below the data rather than above it).
+function HeatmapTable({ cols, rows }: { cols: string[]; rows: { label: string; values: number[] }[] }) {
+  const max = Math.max(1, ...rows.flatMap((r) => r.values));
+  return (
+    <div style={{ overflow: "hidden", borderRadius: 10, border: "1px solid var(--vw-color-slate-200)" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.label} style={i > 0 ? { borderTop: "1px solid var(--vw-color-slate-200)" } : undefined}>
+              <td style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--vw-color-gray-700)", whiteSpace: "nowrap" }}>{r.label}</td>
+              {r.values.map((v, j) => (
+                <td key={j} style={{ padding: "8px 12px", textAlign: "center", fontSize: 12.5, fontWeight: 500, color: "var(--vw-color-gray-800)", background: `rgba(37,99,235,${(0.06 + (v / max) * 0.5).toFixed(2)})` }}>{v}</td>
+              ))}
+            </tr>
+          ))}
+          <tr style={{ borderTop: "1px solid var(--vw-color-slate-200)" }}>
+            <td style={{ padding: "8px 12px" }} />
+            {cols.map((c) => (
+              <td key={c} style={{ padding: "8px 12px", textAlign: "center", fontSize: 11, color: "var(--vw-color-gray-400)", whiteSpace: "nowrap" }}>{c}</td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Status/title/value/date table — shared shape for "Open problems" and
+// "Problems by incident volume"; only the value column's label/tone differ.
+interface TicketRow { status: string; statusTone: "info" | "purple"; title: string; value: string; date: string }
+function TicketTable({ valueLabel, valueTone, rows }: { valueLabel: string; valueTone?: "orange"; rows: TicketRow[] }) {
+  return (
+    <div style={{ overflow: "hidden", borderRadius: 10, border: "1px solid var(--vw-color-slate-200)" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+        <thead style={{ background: "var(--vw-color-gray-50)" }}>
+          <tr>
+            {["Status", "Title", valueLabel, "Reported on"].map((c) => (
+              <th key={c} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11.5, fontWeight: 500, color: "var(--vw-color-gray-500)", whiteSpace: "nowrap" }}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderTop: "1px solid var(--vw-color-slate-200)" }}>
+              <td style={{ padding: "8px 12px" }}>
+                <span className={`vw-chip ${r.statusTone === "purple" ? "vw-chip--purple" : "vw-chip--info"}`} style={{ fontSize: 11 }}>{r.status}</span>
+              </td>
+              <td style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--vw-color-gray-800)", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.title}>{r.title}</td>
+              <td style={{ padding: "8px 12px" }}>
+                {valueTone === "orange"
+                  ? <span className="vw-chip vw-chip--orange" style={{ fontSize: 11 }}>{r.value}</span>
+                  : <span style={{ fontSize: 12.5, color: "var(--vw-color-gray-700)" }}>{r.value}</span>}
+              </td>
+              <td style={{ padding: "8px 12px", fontSize: 12.5, color: "var(--vw-color-gray-500)", whiteSpace: "nowrap" }}>{r.date}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Labeled horizontal progress bars — e.g. a status breakdown as % of total.
+function ProgressBarList({ rows }: { rows: { label: string; pct: number; color: string }[] }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {rows.map((r) => (
+        <div key={r.label}>
+          <div className="vw-flex vw-items-center vw-justify-between" style={{ marginBottom: 6 }}>
+            <span style={{ fontSize: 12.5, color: "var(--vw-color-gray-700)" }}>{r.label}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--vw-color-gray-900)" }}>{r.pct.toFixed(2)}%</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: "var(--vw-color-gray-100)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${Math.min(100, r.pct)}%`, borderRadius: 999, background: r.color }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1532,8 +2456,18 @@ const WIDGET_DETAIL_ITEMS = [
   { name: "Configuration", desc: "Chart type, axis fields, filters, and color mapping" },
 ];
 
-function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; widgetType: WidgetType; datasetName: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+const PURCHASE_TREND_MONTHS = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
+const PURCHASE_TREND_VALUES = [200_000, 150_000, 18_000_000, 500_000, 1_500_000, 3_000_000, 4_000_000, 300_000, 200_000, 300_000, 10_000_000, 110_000_000];
+
+const MONTHLY_JOB_TREND_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHLY_JOB_TREND_VALUES = [120, 135, 128, 142, 150, 165, 158, 172, 180, 175, 190, 205];
+
+const TRIAL_DOMAIN_DATES = ["21-Aug", "22-Aug", "23-Aug", "24-Aug", "26-Aug", "27-Aug", "25-Aug"];
+const TRIAL_DOMAIN_TRANSPORT = [4, 2, 4, 2, 2, 8, 3];
+const TRIAL_DOMAIN_RAN = [3, 2, 2, 8, 3, 2, 0];
+
+function WidgetPreview({ id, title, approval, widgetType, datasetName, seed, onExplainAi, onSubmit, onDiscard }: {
+  id?: string; title: string; approval?: ApprovalStatus; widgetType: WidgetType; datasetName: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1613,11 +2547,48 @@ function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExpla
               <div className={`vw-card-variance ${kpiTrend.startsWith("-") ? "is-negative" : "is-positive"}`} style={{ marginTop: 10 }}>{kpiTrend}</div>
             </div>
           )}
-          {widgetType === "Bar chart" && <SvgBarChart data={barData} height={260} />}
+          {widgetType === "Bar chart" && (
+            id === "wl2"
+              ? <SvgHorizontalBarChart data={INCIDENT_CATEGORY_DATA} />
+              : <SvgBarChart data={barData} height={260} />
+          )}
           {widgetType === "Line chart" && (
             <SvgAreaLineChart series={[{ name: title, color: "var(--vw-color-blue-500)", values: lineValues }]} labels={lineLabels} height={260} />
           )}
           {widgetType === "Table" && <MiniDataTable cols={tableCols} rows={tableRows} />}
+          {widgetType === "Donut chart" && <SvgDonutChart data={barData} size={220} />}
+          {widgetType === "Area chart" && (
+            <SvgAreaLineChart
+              series={[{ name: title, color: id === "wl3" ? "var(--vw-color-purple-500)" : "var(--vw-color-blue-500)", values: id === "wl3" ? PURCHASE_TREND_VALUES : lineValues }]}
+              labels={id === "wl3" ? PURCHASE_TREND_MONTHS : lineLabels}
+              xAxisLabel={id === "wl3" ? "Months" : undefined}
+              yAxisLabel={id === "wl3" ? "Expected revenue" : undefined}
+              curve={id === "wl3" ? "linear" : "smooth"}
+              height={280}
+            />
+          )}
+          {widgetType === "Column chart" && (
+            <SvgBarChart
+              data={(id === "wl4" ? MONTHLY_JOB_TREND_MONTHS : barLabels).map((label, i) => ({
+                label,
+                value: id === "wl4" ? MONTHLY_JOB_TREND_VALUES[i] : barValues[i],
+                color: "var(--vw-color-blue-500)",
+              }))}
+              height={260}
+            />
+          )}
+          {widgetType === "Stacked column chart" && (
+            <SvgStackedColumnChart
+              categories={id === "wl5" ? TRIAL_DOMAIN_DATES : barLabels}
+              series={id === "wl5"
+                ? [
+                    { name: "TRANSPORT", color: "var(--vw-color-blue-400)", values: TRIAL_DOMAIN_TRANSPORT },
+                    { name: "RAN", color: "var(--vw-color-blue-600)", values: TRIAL_DOMAIN_RAN },
+                  ]
+                : [{ name: title, color: "var(--vw-color-blue-500)", values: barValues }]}
+              height={320}
+            />
+          )}
         </ChartCard>
 
         {/* Row 2 — dataset · used on dashboards · configuration */}
@@ -1644,7 +2615,7 @@ function WidgetPreview({ title, approval, widgetType, datasetName, seed, onExpla
               rows={[
                 { label: "Layout", value: widgetType },
                 { label: "Grouped by", value: "segment" },
-                { label: "Colors", value: "Primary blue · status accents" },
+                { label: "Colors", value: id === "wl3" ? "Primary purple" : "Primary blue · status accents" },
               ]}
             />
           </div>
@@ -1687,8 +2658,88 @@ const DATASET_DETAIL_ITEMS = [
   { name: "Used by widgets", desc: "Every widget currently bound to this dataset" },
 ];
 
-function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+// ── Curated queries for the top four datasets (ds1–ds4) — each one's query,
+// result grid, and schema actually reflect what the dataset is, instead of
+// the generic id/segment/value/updated_at template every dataset used to
+// share. Table names, columns, and sample rows below are placeholder. ──
+interface CuratedDataset { table: string; query: string; cols: string[]; rows: string[][]; schema: { label: string; value: string }[] }
+const DATASET_CURATED: Record<string, CuratedDataset> = {
+  ds1: {
+    table: "revenue_dataset",
+    query: "SELECT account_id, segment, region, revenue, booked_at\nFROM revenue_dataset\nWHERE booked_at >= current_date - interval '90 days'\nORDER BY revenue DESC\nLIMIT 100",
+    cols: ["account_id", "segment", "region", "revenue", "booked_at"],
+    rows: [
+      ["ACC-40231", "Enterprise", "North America", "482,100", "2026-07-18"],
+      ["ACC-40118", "Mid-market", "EMEA", "216,450", "2026-07-17"],
+      ["ACC-40390", "Enterprise", "APAC", "198,720", "2026-07-16"],
+      ["ACC-40205", "SMB", "North America", "64,300", "2026-07-15"],
+    ],
+    schema: [
+      { label: "account_id", value: "BIGINT" },
+      { label: "segment", value: "VARCHAR" },
+      { label: "region", value: "VARCHAR" },
+      { label: "revenue", value: "DECIMAL" },
+      { label: "booked_at", value: "TIMESTAMP" },
+    ],
+  },
+  ds2: {
+    table: "network_devices",
+    query: "SELECT device_id, device_type, region, status, last_seen_at\nFROM network_devices\nWHERE status != 'decommissioned'\nORDER BY last_seen_at DESC\nLIMIT 100",
+    cols: ["device_id", "device_type", "region", "status", "last_seen_at"],
+    rows: [
+      ["DEV-88213", "Router", "North", "Online", "2026-07-19 08:12"],
+      ["DEV-88214", "Switch", "South", "Online", "2026-07-19 07:58"],
+      ["DEV-88215", "Access Point", "East", "Degraded", "2026-07-19 06:40"],
+      ["DEV-88216", "Firewall", "West", "Offline", "2026-07-18 22:15"],
+    ],
+    schema: [
+      { label: "device_id", value: "VARCHAR" },
+      { label: "device_type", value: "VARCHAR" },
+      { label: "region", value: "VARCHAR" },
+      { label: "status", value: "VARCHAR" },
+      { label: "last_seen_at", value: "TIMESTAMP" },
+    ],
+  },
+  ds3: {
+    table: "crew_schedule",
+    query: "SELECT technician_id, technician_name, region, shift_date, status\nFROM crew_schedule\nWHERE shift_date >= current_date\nORDER BY shift_date ASC\nLIMIT 100",
+    cols: ["technician_id", "technician_name", "region", "shift_date", "status"],
+    rows: [
+      ["TECH-3021", "R. Fernandes", "Pune", "2026-07-22", "Scheduled"],
+      ["TECH-3045", "A. Iyer", "Nagpur", "2026-07-22", "Scheduled"],
+      ["TECH-3102", "S. Malhotra", "Pune", "2026-07-23", "On leave"],
+      ["TECH-3118", "K. Bose", "Indore", "2026-07-23", "Scheduled"],
+    ],
+    schema: [
+      { label: "technician_id", value: "VARCHAR" },
+      { label: "technician_name", value: "VARCHAR" },
+      { label: "region", value: "VARCHAR" },
+      { label: "shift_date", value: "DATE" },
+      { label: "status", value: "VARCHAR" },
+    ],
+  },
+  ds4: {
+    table: "churn_feature_dataset",
+    query: "SELECT customer_id, tenure_months, engagement_score, support_tickets_90d, churn_risk\nFROM churn_feature_dataset\nWHERE churn_risk >= 0.5\nORDER BY churn_risk DESC\nLIMIT 100",
+    cols: ["customer_id", "tenure_months", "engagement_score", "support_tickets_90d", "churn_risk"],
+    rows: [
+      ["CUST-51092", "6", "0.32", "5", "0.81"],
+      ["CUST-51104", "11", "0.41", "3", "0.74"],
+      ["CUST-51087", "3", "0.28", "6", "0.69"],
+      ["CUST-51150", "18", "0.55", "2", "0.58"],
+    ],
+    schema: [
+      { label: "customer_id", value: "VARCHAR" },
+      { label: "tenure_months", value: "INT" },
+      { label: "engagement_score", value: "DECIMAL" },
+      { label: "support_tickets_90d", value: "INT" },
+      { label: "churn_risk", value: "DECIMAL" },
+    ],
+  },
+};
+
+function DatasetPreview({ id, title, approval, sourceType, seed, onExplainAi, onSubmit, onDiscard }: {
+  id?: string; title: string; approval?: ApprovalStatus; sourceType: string; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1702,8 +2753,9 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
     setTimeout(onSubmit, 900);
   };
 
-  const tableCols = ["id", "segment", "value", "updated_at"];
-  const tableRows = rotate([
+  const curated = id ? DATASET_CURATED[id] : undefined;
+  const tableCols = curated?.cols ?? ["id", "segment", "value", "updated_at"];
+  const tableRows = curated?.rows ?? rotate([
     ["10231", "Enterprise", "48,210", "2026-07-15"],
     ["10232", "Mid-market", "12,904", "2026-07-15"],
     ["10233", "SMB", "3,118", "2026-07-14"],
@@ -1752,7 +2804,7 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
         {/* Centerpiece — the governed query and its live result grid */}
         <ChartCard title="Live preview" subtitle={`Query · bound to ${sourceType}`}>
           <div style={{ overflow: "hidden", borderRadius: 10, background: "#0B1020", padding: "14px 16px", marginBottom: 14 }}>
-            <pre style={{ overflowX: "auto", color: "#93C5FD", fontSize: 12, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0 }}>{queryFor(title)}</pre>
+            <pre style={{ overflowX: "auto", color: "#93C5FD", fontSize: 12, lineHeight: 1.7, fontFamily: "ui-monospace, monospace", margin: 0 }}>{curated?.query ?? queryFor(title)}</pre>
           </div>
           <MiniDataTable cols={tableCols} rows={tableRows} />
         </ChartCard>
@@ -1764,7 +2816,7 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
               icon={Database} title="Source"
               rows={[
                 { label: "Datasource", value: sourceType },
-                { label: "Table", value: title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") },
+                { label: "Table", value: curated?.table ?? title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") },
                 { label: "Refresh", value: "Daily · 06:00 IST" },
                 { label: "Owner", value: "Data Platform team" },
               ]}
@@ -1773,7 +2825,7 @@ function DatasetPreview({ title, approval, sourceType, seed, onExplainAi, onSubm
           <div style={{ flex: "1 1 240px" }}>
             <InfoListCard
               icon={Table2} title="Schema"
-              rows={[
+              rows={curated?.schema ?? [
                 { label: "id", value: "BIGINT" },
                 { label: "segment", value: "VARCHAR" },
                 { label: "value", value: "DECIMAL" },
@@ -1828,9 +2880,138 @@ const REPORT_DETAIL_ITEMS = [
 ];
 const REPORT_SECTIONS = ["Executive summary", "Dashboard highlights", "SLA compliance", "Recommendations"];
 
-function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onExplainAi, onSubmit, onDiscard }: {
-  title: string; approval?: ApprovalStatus; frequency: ReportFrequency; sourceDashboards: string[]; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
+// ── Case Register Care Report (rp1) — curated content matching the real
+// customer-care case export: a wide, scrollable case register grid rather
+// than the generic narrative-document template. Case IDs, dates, and company
+// names below are placeholder — same column shape, not the live data. ──
+const CR_SUBTITLE = "Full case register — every case, its priority and severity, ownership, and resolution timeline.";
+const CR_COLUMNS = ["CaseID", "CaseType", "CustomerID", "Customer", "Priority", "Severity", "AssignedCaseAgent", "AssignedTeam", "Offering", "OrderID", "Status", "CreatedDate", "LastUpdated", "ResolvedOn", "ClosedOn"];
+const CR_STATUS_TONE: Record<string, "success" | "info" | "warning" | "neutral"> = { Closed: "success", Resolved: "info", Open: "warning", New: "neutral" };
+function CrStatus({ status }: { status: string }) {
+  return <span className={`vw-chip vw-chip--${CR_STATUS_TONE[status] ?? "neutral"}`} style={{ fontSize: 10.5 }}>{status}</span>;
+}
+const CR_ROWS_RAW: { id: string; type: string; custId: string; customer: string; priority: string; severity: string; agent: string; order: string; status: string; created: string; updated: string; resolved: string; closed: string }[] = [
+  { id: "CASE-0004512", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "Medium", severity: "Major", agent: "Priya Nair", order: "ORD-SIM Replacement-6579", status: "Closed", created: "19-Jan-2026", updated: "19-Jan-2026", resolved: "19-Jan-2026", closed: "19-Jan-2026" },
+  { id: "CASE-0004509", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "Low", severity: "Major", agent: "Priya Nair", order: "ORD-SIM Replacement-6579", status: "Resolved", created: "19-Jan-2026", updated: "19-Jan-2026", resolved: "19-Jan-2026", closed: "21-Jan-2026" },
+  { id: "CASE-0004507", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "High", severity: "Critical", agent: "—", order: "ORD-SIM Replacement-6579", status: "Open", created: "19-Jan-2026", updated: "21-Jan-2026", resolved: "—", closed: "—" },
+  { id: "CASE-0004506", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "Medium", severity: "Major", agent: "Priya Nair", order: "ORD-Disconnect Primary-8068", status: "Resolved", created: "19-Jan-2026", updated: "19-Jan-2026", resolved: "19-Jan-2026", closed: "21-Jan-2026" },
+  { id: "CASE-0004503", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "High", severity: "Critical", agent: "Priya Nair", order: "ORD-SIM Replacement-6579", status: "Resolved", created: "19-Jan-2026", updated: "19-Jan-2026", resolved: "19-Jan-2026", closed: "21-Jan-2026" },
+  { id: "CASE-0004498", type: "Service Activation", custId: "CUST-0142", customer: "Aster Facilities", priority: "Low", severity: "Minor", agent: "—", order: "—", status: "New", created: "19-Jan-2026", updated: "20-Jan-2026", resolved: "—", closed: "—" },
+  { id: "CASE-0004421", type: "Billing Issue", custId: "CUST-2719", customer: "Falcon Holdings", priority: "High", severity: "Critical", agent: "—", order: "ORD-ENT-IMI-0179", status: "New", created: "14-Jan-2026", updated: "14-Jan-2026", resolved: "—", closed: "—" },
+  { id: "CASE-0004502", type: "Billing Issue", custId: "CUST-7846", customer: "Meridian Retail Group", priority: "Medium", severity: "Major", agent: "—", order: "ORD-Disconnect Primary-8068", status: "Open", created: "14-Jan-2026", updated: "19-Jan-2026", resolved: "—", closed: "—" },
+];
+const CR_ROWS: ReactNode[][] = CR_ROWS_RAW.map((r) => [
+  <CodeLink>{r.id}</CodeLink>, r.type, r.custId, r.customer, r.priority, r.severity, r.agent, "—", "—", r.order, <CrStatus status={r.status} />, r.created, r.updated, r.resolved, r.closed,
+]);
+const CR_SECTIONS = ["Case summary", "Cases by status and severity", "Full case register", "Ageing and escalations"];
+const CR_DETAIL_ITEMS = [
+  { name: "Live preview", desc: "The full case register — every case, column by column" },
+  { name: "Schedule", desc: "Frequency, next/last run, and the distribution list" },
+  { name: "Sections", desc: "The document's section outline" },
+];
+
+// ── Survey Register and Lifecycle Report (rp2) — curated content matching
+// the real survey-platform export: a wide, scrollable register of every
+// survey and its lifecycle metrics. Names and numbers below are
+// placeholder — same column shape, not the live data. ──
+const SR_SUBTITLE = "Full survey register — every survey, its lifecycle dates, structure, and completion progress.";
+const SR_COLUMNS = ["SurveyName", "SurveyType", "Description", "SurveyStatus", "SurveyMode", "CreatedOn", "PublishedOn", "LastUpdatedOn", "NumberOfQuestions", "NumberOfPages", "AvgQuestionsPerPage", "DaysToPublish", "SurveyDuration", "TotalInvitees", "CompletionProgress"];
+const SR_STATUS_TONE: Record<string, "success" | "info" | "neutral" | "purple"> = { Published: "success", Closed: "info", Draft: "neutral", Archived: "purple" };
+function SrStatus({ status }: { status: string }) {
+  return <span className={`vw-chip vw-chip--${SR_STATUS_TONE[status] ?? "neutral"}`} style={{ fontSize: 10.5 }}>{status}</span>;
+}
+const SR_ROWS_RAW: { name: string; type: string; desc: string; status: string; mode: string; created: string; published: string; updated: string; questions: number; pages: number; daysToPublish: string; duration: string; invitees: string; completion: string }[] = [
+  { name: "Post-onboarding CSAT", type: "CSAT", desc: "Satisfaction check after onboarding completion", status: "Closed", mode: "Email", created: "05-Jan-2026", published: "07-Jan-2026", updated: "28-Jan-2026", questions: 8, pages: 2, daysToPublish: "2", duration: "21 days", invitees: "640", completion: "78%" },
+  { name: "Q1 NPS Pulse", type: "NPS", desc: "Quarterly net promoter score pulse check", status: "Published", mode: "In-app", created: "10-Jan-2026", published: "12-Jan-2026", updated: "20-Jan-2026", questions: 3, pages: 1, daysToPublish: "2", duration: "14 days", invitees: "2,150", completion: "54%" },
+  { name: "Support Ticket Follow-up", type: "CES", desc: "Post-resolution effort score for closed tickets", status: "Published", mode: "Email", created: "15-Jan-2026", published: "15-Jan-2026", updated: "19-Jan-2026", questions: 5, pages: 1, daysToPublish: "0", duration: "30 days", invitees: "980", completion: "41%" },
+  { name: "Product Beta Feedback", type: "Custom", desc: "Structured feedback from private beta participants", status: "Draft", mode: "Web link", created: "18-Jan-2026", published: "—", updated: "19-Jan-2026", questions: 12, pages: 3, daysToPublish: "—", duration: "—", invitees: "0", completion: "—" },
+  { name: "Annual Employee Engagement", type: "Employee Engagement", desc: "Company-wide annual engagement and culture survey", status: "Closed", mode: "Web link", created: "02-Dec-2025", published: "05-Dec-2025", updated: "10-Jan-2026", questions: 24, pages: 6, daysToPublish: "3", duration: "30 days", invitees: "1,340", completion: "86%" },
+  { name: "Churn Exit Interview", type: "Exit Survey", desc: "Understand why customers cancelled their subscription", status: "Published", mode: "Email", created: "08-Jan-2026", published: "09-Jan-2026", updated: "19-Jan-2026", questions: 6, pages: 2, daysToPublish: "1", duration: "60 days", invitees: "210", completion: "63%" },
+  { name: "Renewal Readiness Check", type: "CSAT", desc: "Assess renewal likelihood ahead of contract expiry", status: "Archived", mode: "SMS", created: "20-Oct-2025", published: "22-Oct-2025", updated: "30-Nov-2025", questions: 4, pages: 1, daysToPublish: "2", duration: "21 days", invitees: "430", completion: "91%" },
+];
+const SR_ROWS: ReactNode[][] = SR_ROWS_RAW.map((r) => [
+  <CodeLink>{r.name}</CodeLink>, r.type, r.desc, <SrStatus status={r.status} />, r.mode, r.created, r.published, r.updated,
+  String(r.questions), String(r.pages), (r.pages > 0 ? (r.questions / r.pages).toFixed(1) : "—"), r.daysToPublish, r.duration, r.invitees, r.completion,
+]);
+const SR_SECTIONS = ["Survey summary", "Surveys by status and type", "Full survey register", "Completion and response trends"];
+const SR_DETAIL_ITEMS = [
+  { name: "Live preview", desc: "The full survey register — every survey, column by column" },
+  { name: "Schedule", desc: "Frequency, next/last run, and the distribution list" },
+  { name: "Sections", desc: "The document's section outline" },
+];
+
+// ── Delayed Orders Report (rp3) — curated content matching the real order-
+// management export: every order still open past its requested completion
+// date, with how many days overdue. Customers, IDs, and dates below are
+// placeholder — same column shape, not the live data. ──
+const DO_SUBTITLE = "Every order past its requested completion date, with how many days overdue.";
+const DO_COLUMNS = ["OrderId", "Customer", "OrderDate", "RequestedCompletionDate", "Status", "DelayDays"];
+const DO_STATUS_TONE: Record<string, "info" | "warning" | "success" | "neutral"> = { NEW: "info", PARKED: "warning", DELIVERED: "success", OPEN: "neutral" };
+function DoStatus({ status }: { status: string }) {
+  return <span className={`vw-chip vw-chip--${DO_STATUS_TONE[status] ?? "neutral"}`} style={{ fontSize: 10.5 }}>{status}</span>;
+}
+const DO_ROWS_RAW: { orderId: string; customer: string; orderDate: string; requested: string; status: string; delay: number }[] = [
+  { orderId: "ORD-ENT-IMI-0550", customer: "Solstice Technologies", orderDate: "26-Oct-2025", requested: "07-Mar-2023", status: "NEW", delay: 1233 },
+  { orderId: "ORD-ENT-IMI-0542", customer: "Solstice Technologies", orderDate: "12-Oct-2025", requested: "07-Mar-2023", status: "NEW", delay: 1233 },
+  { orderId: "ORD-ENT-IMI-0540", customer: "Solstice Technologies", orderDate: "08-Oct-2025", requested: "07-Mar-2023", status: "NEW", delay: 1233 },
+  { orderId: "ORD-499", customer: "Ridgeline Cloud", orderDate: "11-Jul-2024", requested: "07-Mar-2023", status: "NEW", delay: 1233 },
+  { orderId: "ORD-RECHARGE-0047", customer: "Marcus Whitfield", orderDate: "08-Jul-2024", requested: "07-Mar-2023", status: "NEW", delay: 1233 },
+  { orderId: "ORD-505", customer: "Ridgeline Cloud", orderDate: "07-Jul-2024", requested: "07-Mar-2023", status: "PARKED", delay: 1233 },
+  { orderId: "ORD-0886924", customer: "Beacon Media Group", orderDate: "10-May-2023", requested: "20-May-2023", status: "DELIVERED", delay: 1159 },
+  { orderId: "ORD-0886925", customer: "Wayfarer Travels", orderDate: "11-May-2023", requested: "21-May-2023", status: "DELIVERED", delay: 1158 },
+  { orderId: "ORD-0886926", customer: "Solstice Technologies", orderDate: "12-May-2023", requested: "22-May-2023", status: "DELIVERED", delay: 1157 },
+  { orderId: "ORD-RET-0886927", customer: "Wayfarer Travels", orderDate: "10-Jan-2024", requested: "12-Jan-2024", status: "NEW", delay: 922 },
+  { orderId: "ORD-RET-312676", customer: "Rohan Verma", orderDate: "11-Jan-2024", requested: "14-Jan-2024", status: "OPEN", delay: 920 },
+];
+const DO_ROWS: ReactNode[][] = DO_ROWS_RAW.map((r) => [
+  <CodeLink>{r.orderId}</CodeLink>, r.customer, r.orderDate, r.requested, <DoStatus status={r.status} />,
+  <span style={{ fontWeight: 600, color: r.delay >= 1000 ? "var(--vw-color-red-600)" : "var(--vw-color-amber-600)" }}>{r.delay}</span>,
+]);
+const DO_SECTIONS = ["Delay summary", "Delayed orders by status", "Full order register", "Oldest and highest-risk delays"];
+const DO_DETAIL_ITEMS = [
+  { name: "Live preview", desc: "Every delayed order — customer, dates, status, and days overdue" },
+  { name: "Schedule", desc: "Frequency, next/last run, and the distribution list" },
+  { name: "Sections", desc: "The document's section outline" },
+];
+
+// ── Partner Master Report (rp4) — curated content matching the real CPM
+// partner master export: every registered partner, its type, region, and
+// standing. Names below are placeholder — same column shape, not the live
+// data. ──
+const PTM_SUBTITLE = "The partner master list — every registered partner, its type, region, and current standing.";
+const PTM_COLUMNS = ["PartnerId", "PartnerName", "PartnerType", "Region", "PartnerStatus"];
+const PTM_STATUS_TONE: Record<string, "success" | "info" | "warning" | "error" | "neutral"> = { Active: "success", Onboarding: "info", "Pending Approval": "warning", Suspended: "error", Inactive: "neutral" };
+function PtmStatus({ status }: { status: string }) {
+  return <span className={`vw-chip vw-chip--${PTM_STATUS_TONE[status] ?? "neutral"}`} style={{ fontSize: 10.5 }}>{status}</span>;
+}
+const PTM_ROWS_RAW: { id: string; name: string; type: string; region: string; status: string }[] = [
+  { id: "PTR-00214", name: "Meridian Systems Integrators", type: "System Integrator", region: "North America", status: "Active" },
+  { id: "PTR-00215", name: "Northwind Distribution", type: "Distributor", region: "EMEA", status: "Active" },
+  { id: "PTR-00218", name: "Solace Cloud Partners", type: "Technology Partner", region: "APAC", status: "Active" },
+  { id: "PTR-00221", name: "BluePeak Resellers", type: "Reseller", region: "North America", status: "Onboarding" },
+  { id: "PTR-00223", name: "Vantage MSP Group", type: "MSP", region: "EMEA", status: "Active" },
+  { id: "PTR-00227", name: "Coastal Referral Network", type: "Referral Partner", region: "LATAM", status: "Pending Approval" },
+  { id: "PTR-00229", name: "Zenith Technology Partners", type: "Technology Partner", region: "APAC", status: "Suspended" },
+  { id: "PTR-00232", name: "Harbor Point Distribution", type: "Distributor", region: "India", status: "Active" },
+  { id: "PTR-00235", name: "Crestline Systems", type: "System Integrator", region: "ANZ", status: "Inactive" },
+];
+const PTM_ROWS: ReactNode[][] = PTM_ROWS_RAW.map((r) => [
+  <CodeLink>{r.id}</CodeLink>, r.name, r.type, r.region, <PtmStatus status={r.status} />,
+]);
+const PTM_SECTIONS = ["Partner summary", "Partners by type and region", "Full partner master list", "Onboarding and suspended partners"];
+const PTM_DETAIL_ITEMS = [
+  { name: "Live preview", desc: "The full partner master list — ID, type, region, and status" },
+  { name: "Schedule", desc: "Frequency, next/last run, and the distribution list" },
+  { name: "Sections", desc: "The document's section outline" },
+];
+
+function ReportPreview({ id, title, approval, frequency, sourceDashboards, seed, onExplainAi, onSubmit, onDiscard }: {
+  id?: string; title: string; approval?: ApprovalStatus; frequency: ReportFrequency; sourceDashboards: string[]; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void;
 }) {
+  const isCaseRegister = id === "rp1";
+  const isSurveyRegister = id === "rp2";
+  const isDelayedOrders = id === "rp3";
+  const isPartnerMaster = id === "rp4";
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const isApproved = approval === "Approved";
@@ -1867,7 +3048,7 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
                 <span className="vw-page-title">{title}</span>
                 {approval && <span className={`vw-chip ${STATUS_CHIP[approval]}`} style={{ fontSize: 11 }}>{approval}</span>}
               </div>
-              <div className="vw-page-description" style={{ marginTop: 2 }}>{REPORT_SUBTITLE}</div>
+              <div className="vw-page-description" style={{ marginTop: 2 }}>{isCaseRegister ? CR_SUBTITLE : isSurveyRegister ? SR_SUBTITLE : isDelayedOrders ? DO_SUBTITLE : isPartnerMaster ? PTM_SUBTITLE : REPORT_SUBTITLE}</div>
             </div>
             <div className="vw-flex vw-gap-xs" style={{ flexShrink: 0 }}>
               <button type="button" onClick={onExplainAi} className="nst-btn nst-btn--sm">
@@ -1893,7 +3074,25 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
           )}
         </div>
 
-        {/* Centerpiece — the compiled narrative document */}
+        {/* Centerpiece — the compiled narrative document (or, for a raw case
+            export like Case Register Care, the register grid itself) */}
+        {isCaseRegister ? (
+          <ChartCard title="Live preview" subtitle={`Generated ${generatedOn} · ${CR_ROWS_RAW.length} cases in this export`}>
+            <MiniDataTable cols={CR_COLUMNS} rows={CR_ROWS} scrollX />
+          </ChartCard>
+        ) : isSurveyRegister ? (
+          <ChartCard title="Live preview" subtitle={`Generated ${generatedOn} · ${SR_ROWS_RAW.length} surveys in this export`}>
+            <MiniDataTable cols={SR_COLUMNS} rows={SR_ROWS} scrollX />
+          </ChartCard>
+        ) : isDelayedOrders ? (
+          <ChartCard title="Live preview" subtitle={`Generated ${generatedOn} · ${DO_ROWS_RAW.length} orders past their requested completion date`}>
+            <MiniDataTable cols={DO_COLUMNS} rows={DO_ROWS} scrollX />
+          </ChartCard>
+        ) : isPartnerMaster ? (
+          <ChartCard title="Live preview" subtitle={`Generated ${generatedOn} · ${PTM_ROWS_RAW.length} partners in the register`}>
+            <MiniDataTable cols={PTM_COLUMNS} rows={PTM_ROWS} scrollX />
+          </ChartCard>
+        ) : (
         <ChartCard title="Live preview" subtitle={`Generated ${generatedOn} · Distribution: Analytics leads`}>
           <div className="vw-flex vw-flex-col vw-gap-xs" style={{ marginBottom: 16 }}>
             <div style={{ height: 10, width: "100%", borderRadius: 5, background: "var(--vw-color-gray-100)" }} />
@@ -1928,6 +3127,7 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
             <div style={{ height: 10, width: "70%", borderRadius: 5, background: "var(--vw-color-gray-100)" }} />
           </div>
         </ChartCard>
+        )}
 
         {/* Row 2 — schedule · sections · source dashboards */}
         <div className="vw-flex vw-wrap vw-gap-md vw-items-stretch">
@@ -1945,15 +3145,17 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
           <div style={{ flex: "1 1 240px" }}>
             <InfoListCard
               icon={FileText} title="Sections"
-              rows={REPORT_SECTIONS.map((s, i) => ({ label: `Section ${i + 1}`, value: s }))}
+              rows={(isCaseRegister ? CR_SECTIONS : isSurveyRegister ? SR_SECTIONS : isDelayedOrders ? DO_SECTIONS : isPartnerMaster ? PTM_SECTIONS : REPORT_SECTIONS).map((s, i) => ({ label: `Section ${i + 1}`, value: s }))}
             />
           </div>
-          <div style={{ flex: "1 1 240px" }}>
-            <InfoListCard
-              icon={LayoutGrid} title="Source dashboards"
-              rows={sourceDashboards.map((d, i) => ({ label: `Dashboard ${i + 1}`, value: d }))}
-            />
-          </div>
+          {sourceDashboards.length > 0 && (
+            <div style={{ flex: "1 1 240px" }}>
+              <InfoListCard
+                icon={LayoutGrid} title="Source dashboards"
+                rows={sourceDashboards.map((d, i) => ({ label: `Dashboard ${i + 1}`, value: d }))}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1967,7 +3169,7 @@ function ReportPreview({ title, approval, frequency, sourceDashboards, seed, onE
             </button>
           </div>
           <div className="vw-flex vw-flex-col vw-gap-xs">
-            {REPORT_DETAIL_ITEMS.map((w) => (
+            {(isCaseRegister ? CR_DETAIL_ITEMS : isSurveyRegister ? SR_DETAIL_ITEMS : isDelayedOrders ? DO_DETAIL_ITEMS : isPartnerMaster ? PTM_DETAIL_ITEMS : REPORT_DETAIL_ITEMS).map((w) => (
               <div key={w.name} className="vw-card-child-shaded">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--vw-color-gray-800)" }}>{w.name}</div>
                 <div className="vw-card-description" style={{ fontSize: 11.5 }}>{w.desc}</div>
@@ -2453,7 +3655,7 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {kind === "dashboard" ? (
             <DashboardPreview
-              title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+              id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
               onExplainAi={() => openChat(selected, true)}
               onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
               onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
@@ -2461,14 +3663,14 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
           ) : kind === "widget" ? (
             <WidgetPreview
               title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
-              widgetType={selectedWidget?.widgetType ?? "Bar chart"} datasetName={selectedWidget?.datasetName ?? "—"}
+              id={selectedWidget?.id} widgetType={selectedWidget?.widgetType ?? "Bar chart"} datasetName={selectedWidget?.datasetName ?? "—"}
               onExplainAi={() => openChat(selected, true)}
               onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
               onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
             />
           ) : kind === "dataset" ? (
             <DatasetPreview
-              title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+              id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
               sourceType={selectedDataset?.sourceType ?? "Warehouse (Snowflake)"}
               onExplainAi={() => openChat(selected, true)}
               onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
@@ -2476,7 +3678,7 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
             />
           ) : kind === "report" ? (
             <ReportPreview
-              title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+              id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
               frequency={selectedReport?.frequency ?? "Monthly"} sourceDashboards={selectedReport?.sourceDashboards ?? []}
               onExplainAi={() => openChat(selected, true)}
               onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
@@ -2505,7 +3707,7 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
           <div className="w-[60%] flex-shrink-0 overflow-y-auto border-r border-border px-6 py-5">
             {kind === "dashboard" ? (
               <DashboardPreview
-                title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+                id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
                 onExplainAi={() => openChat(selected, true)}
                 onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
                 onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
@@ -2513,14 +3715,14 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
             ) : kind === "widget" ? (
               <WidgetPreview
                 title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
-                widgetType={selectedWidget?.widgetType ?? "Bar chart"} datasetName={selectedWidget?.datasetName ?? "—"}
+                id={selectedWidget?.id} widgetType={selectedWidget?.widgetType ?? "Bar chart"} datasetName={selectedWidget?.datasetName ?? "—"}
                 onExplainAi={() => openChat(selected, true)}
                 onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
                 onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
               />
             ) : kind === "dataset" ? (
               <DatasetPreview
-                title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+                id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
                 sourceType={selectedDataset?.sourceType ?? "Warehouse (Snowflake)"}
                 onExplainAi={() => openChat(selected, true)}
                 onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
@@ -2528,7 +3730,7 @@ export function BiTasksAgent({ kind, onBreadcrumb }: { kind: BiTaskKind; onBread
               />
             ) : kind === "report" ? (
               <ReportPreview
-                title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+                id={selected.id} title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
                 frequency={selectedReport?.frequency ?? "Monthly"} sourceDashboards={selectedReport?.sourceDashboards ?? []}
                 onExplainAi={() => openChat(selected, true)}
                 onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}

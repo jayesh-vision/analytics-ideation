@@ -133,6 +133,7 @@ export {
   ThumbsDown as ThumbsDown,
   ThumbsUp as ThumbsUp,
   TrendUp as TrendingUp,
+  TrendDown as TrendingDown,
   UploadSimple as Upload,
   UserCircle as UserCircle,
   Wind as Wind,
