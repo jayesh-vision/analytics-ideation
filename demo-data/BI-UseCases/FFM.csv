@@ -1,0 +1,9 @@
+Region,Order_ID,Technician_ID,Task_Status,Completion_Delay_Days,Delay_Reason,Quarter
+North,ORD-NOR-1038,TECH-NOR-07,Delayed,16,ONU Stock-Out,Q2 FY25-26
+North,ORD-NOR-1042,TECH-NOR-07,Delayed,18,ONU Stock-Out,Q2 FY25-26
+North,ORD-NOR-1047,TECH-NOR-09,Delayed,12,Technician Shortage,Q2 FY25-26
+North,ORD-NOR-1050,TECH-NOR-01,Completed,0,—,Q2 FY25-26
+South,ORD-SOU-2010,TECH-SOU-02,Completed,0,—,Q2 FY25-26
+East,ORD-EAS-3021,TECH-EAS-03,Completed,1,—,Q2 FY25-26
+West,ORD-WES-4033,TECH-WES-01,Completed,1,—,Q2 FY25-26
+Central,ORD-CEN-5044,TECH-CEN-02,Completed,0,—,Q2 FY25-26

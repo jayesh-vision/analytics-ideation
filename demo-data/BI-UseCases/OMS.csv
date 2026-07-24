@@ -1,0 +1,10 @@
+Region,Customer_ID,Order_ID,Order_Type,SLA_Status,Provisioning_Delay_Days,Quarter
+North,CUST-NOR-011,ORD-NOR-1038,New FTTH Connection,Breached,16,Q2 FY25-26
+North,CUST-NOR-014,ORD-NOR-1042,New FTTH Connection,Breached,18,Q2 FY25-26
+North,CUST-NOR-022,ORD-NOR-1047,New FTTH Connection,Breached,12,Q2 FY25-26
+North,CUST-NOR-019,ORD-NOR-1050,New FTTH Connection,Met,2,Q2 FY25-26
+South,CUST-SOU-031,ORD-SOU-2010,New FTTH Connection,Met,1,Q2 FY25-26
+South,CUST-SOU-034,ORD-SOU-2014,New FTTH Connection,Met,2,Q2 FY25-26
+East,CUST-EAS-041,ORD-EAS-3021,New FTTH Connection,Met,1,Q2 FY25-26
+West,CUST-WES-051,ORD-WES-4033,New FTTH Connection,Met,3,Q2 FY25-26
+Central,CUST-CEN-061,ORD-CEN-5044,New FTTH Connection,Met,1,Q2 FY25-26

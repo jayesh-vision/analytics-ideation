@@ -1,0 +1,17 @@
+Region,Product,Month,Units,Revenue
+North,Laptops,Aug,45,42750
+North,Tablets,Aug,32,16640
+North,Phones,Aug,40,31200
+North,Accessories,Aug,19,855
+South,Laptops,Aug,74,70300
+South,Tablets,Aug,52,27040
+South,Phones,Aug,66,51480
+South,Accessories,Aug,31,1395
+East,Laptops,Aug,81,76950
+East,Tablets,Aug,58,30160
+East,Phones,Aug,95,74100
+East,Accessories,Aug,45,2025
+West,Laptops,Aug,55,52250
+West,Tablets,Aug,39,20280
+West,Phones,Aug,65,50700
+West,Accessories,Aug,31,1395

@@ -1,0 +1,9 @@
+Region,Ticket_ID,Technician_ID,Ticket_Status,Completion_Delay_Days,Delay_Reason,Quarter
+West,TKT-WES-3301,TECH-WES-04,Delayed,8,Connector Spare Part Stock-Out,Q2 FY25-26
+West,TKT-WES-3305,TECH-WES-04,Delayed,10,Grid Outage – DISCOM Dependency,Q2 FY25-26
+West,TKT-WES-3310,TECH-WES-06,Completed,0,—,Q2 FY25-26
+West,TKT-WES-3299,TECH-WES-02,Completed,1,—,Q2 FY25-26
+North,TKT-NOR-4110,TECH-NOR-01,Completed,1,—,Q2 FY25-26
+South,TKT-SOU-5205,TECH-SOU-03,Completed,1,—,Q2 FY25-26
+East,TKT-EAS-6112,TECH-EAS-02,Completed,2,—,Q2 FY25-26
+Central,TKT-CEN-7108,TECH-CEN-01,Completed,1,—,Q2 FY25-26

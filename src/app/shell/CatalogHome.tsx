@@ -5,7 +5,7 @@ import { useCurrentUser } from "./CurrentUser";
 
 // Ask-first home for every persona. One prompt across the team; the specialist agents
 // sit quietly below; what needs a human lives in the right rail. Minimal navigation.
-interface Att { sev: "Critical" | "High" | "Medium"; area: string; title: string }
+interface Att { sev: "Critical" | "High" | "Medium"; area: string; title: string; dashboard?: string }
 interface Task { state: "Pending" | "Overdue"; title: string; from: string }
 interface HomeCfg { greeting: string; placeholder: string; starters: string[]; attention: Att[]; tasks: Task[] }
 
@@ -15,9 +15,11 @@ const HOME: Record<string, HomeCfg> = {
     placeholder: "Ask across every agent — build, visualize, compose, or report…",
     starters: ["Build a dataset from Orders and Customers", "Create a revenue KPI widget", "Compose a Q3 sales dashboard", "Generate this week's executive report"],
     attention: [
-      { sev: "Critical", area: "Dashboard", title: "Q3 Revenue dashboard failed to refresh — 3 widgets stale" },
+      // Board-demo Step-0 anomaly flags — clicking jumps straight to the
+      // flagged dashboard (names must match useCasePacks.ts dashboardName).
+      { sev: "Critical", area: "Dashboard", title: "West Zone charging utilization dropped to 74% (target 96%)", dashboard: "Solstice Energy network performance" },
+      { sev: "Critical", area: "Dashboard", title: "North Circle SLA compliance dropped to 72% (target 97%)", dashboard: "Vertex Telecom consolidated performance" },
       { sev: "High", area: "Dataset", title: "orders_summary dataset build failed — schema mismatch" },
-      { sev: "High", area: "Report", title: "Weekly Ops report missed its 8am schedule" },
       { sev: "Medium", area: "Widget", title: "5 widgets reference a deprecated dataset" },
     ],
     tasks: [
@@ -34,7 +36,7 @@ const SEV_BG: Record<string, string> = { Critical: "#FEE2E2", High: "#FFEDD5", M
 
 const SOURCE_OPTIONS = ["All types", "Datasources", "Datasets", "Widgets", "Reports", "Dashboards"];
 
-export function PersonaHome({ persona, onOpenAgent, onAsk }: { persona: Persona; onOpenAgent: (a: Agent) => void; onAsk?: (text: string) => void }) {
+export function PersonaHome({ persona, onOpenAgent, onAsk, onOpenAttention }: { persona: Persona; onOpenAgent: (a: Agent) => void; onAsk?: (text: string) => void; onOpenAttention?: (dashboardName: string) => void }) {
   const [ask, setAsk] = useState("");
   const submitAsk = () => {
     const text = ask.trim();
@@ -185,15 +187,23 @@ export function PersonaHome({ persona, onOpenAgent, onAsk }: { persona: Persona;
           {cfg.attention.length > 0 && (<>
             <RailHeader icon={AlertTriangle} label="Needs attention" count={cfg.attention.length} tint="#C2410C" />
             <div className="mb-6 space-y-2.5">
-              {cfg.attention.map((a, i) => (
-                <div key={i} className="rounded-[11px] border border-border bg-card p-3">
-                  <div className="mb-1 flex items-center gap-1.5">
-                    <span className="rounded-full px-1.5 py-0.5" style={{ fontSize: "9.5px", fontWeight: 700, color: SEV[a.sev], background: SEV_BG[a.sev] }}>{a.sev}</span>
-                    <span className="text-muted-foreground" style={{ fontSize: "10.5px" }}>{a.area}</span>
+              {cfg.attention.map((a, i) => {
+                const clickable = !!a.dashboard && !!onOpenAttention;
+                return (
+                  <div
+                    key={i}
+                    onClick={clickable ? () => onOpenAttention!(a.dashboard!) : undefined}
+                    className={`rounded-[11px] border border-border bg-card p-3${clickable ? " cursor-pointer transition-colors hover:border-primary/40 hover:bg-primary/[0.02]" : ""}`}
+                  >
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span className="rounded-full px-1.5 py-0.5" style={{ fontSize: "9.5px", fontWeight: 700, color: SEV[a.sev], background: SEV_BG[a.sev] }}>{a.sev}</span>
+                      <span className="text-muted-foreground" style={{ fontSize: "10.5px" }}>{a.area}</span>
+                    </div>
+                    <div className="text-foreground" style={{ fontSize: "12px", fontWeight: 500, lineHeight: 1.4 }}>{a.title}</div>
+                    {clickable && <div className="mt-1 text-primary" style={{ fontSize: "10.5px", fontWeight: 600 }}>Open dashboard →</div>}
                   </div>
-                  <div className="text-foreground" style={{ fontSize: "12px", fontWeight: 500, lineHeight: 1.4 }}>{a.title}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>)}
 

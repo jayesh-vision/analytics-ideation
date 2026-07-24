@@ -27,9 +27,12 @@ export function PersonaShell() {
   const [activeAgent, setActiveAgent] = useState<Agent | null>(null);
   const [crumbs, setCrumbs] = useState<BreadcrumbState>(ROOT_CRUMBS);
   const [pendingPrompt, setPendingPrompt] = useState<string | undefined>(undefined);
+  const [pendingDashboard, setPendingDashboard] = useState<string | undefined>(undefined);
 
-  const openAgent = (agent: Agent, prompt?: string) => { setCrumbs(ROOT_CRUMBS); setActiveAgent(agent); setPendingPrompt(prompt); };
-  const backToHome = () => { setActiveAgent(null); setCrumbs(ROOT_CRUMBS); setPendingPrompt(undefined); };
+  const openAgent = (agent: Agent, prompt?: string, dashboard?: string) => {
+    setCrumbs(ROOT_CRUMBS); setActiveAgent(agent); setPendingPrompt(prompt); setPendingDashboard(dashboard);
+  };
+  const backToHome = () => { setActiveAgent(null); setCrumbs(ROOT_CRUMBS); setPendingPrompt(undefined); setPendingDashboard(undefined); };
 
   const askFromHome = (text: string) => {
     const kind = inferKind(text);
@@ -37,10 +40,17 @@ export function PersonaShell() {
     if (agent) openAgent(agent, text);
   };
 
+  // A "Needs attention" alert deep-links to its flagged dashboard's preview
+  // inside the Dashboard Composer (board-demo Step 0).
+  const openAttention = (dashboardName: string) => {
+    const agent = persona.agents.find((a) => a.surface === "biTasks" && a.agentKey === "dashboard");
+    if (agent) openAgent(agent, undefined, dashboardName);
+  };
+
   const renderSurface = (agent: Agent) => {
     switch (agent.surface) {
       case "biTasks":
-        return <BiTasksAgent kind={agent.agentKey as BiTaskKind} onBreadcrumb={setCrumbs} initialPrompt={pendingPrompt} />;
+        return <BiTasksAgent kind={agent.agentKey as BiTaskKind} onBreadcrumb={setCrumbs} initialPrompt={pendingPrompt} initialDashboard={pendingDashboard} />;
       case "biExplainer":
         return <ExplainerAgent />;
       default:
@@ -70,7 +80,7 @@ export function PersonaShell() {
           <div className="min-h-0 flex-1 overflow-y-auto">{renderSurface(activeAgent)}</div>
         </div>
       ) : (
-        <PersonaHome persona={persona} onOpenAgent={openAgent} onAsk={askFromHome} />
+        <PersonaHome persona={persona} onOpenAgent={openAgent} onAsk={askFromHome} onOpenAttention={openAttention} />
       )}
     </div>
   );

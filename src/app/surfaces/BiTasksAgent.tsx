@@ -9,6 +9,10 @@ import { AgentDocPanel } from "../shell/AgentDocs";
 import { useCurrentUser } from "../shell/CurrentUser";
 import applicationCatalog from "../data/applicationCatalog.json";
 import { searchWidgets, searchDatasets, searchDashboards, type WidgetMatch, type DatasetMatch, type DashboardMatch } from "../data/platformKnowledge";
+import type { InsightDomain } from "../data/insightDomains";
+import { isAnalyticalQuestion, parseQuestion, answerQuestion, type AnswerResult } from "../data/insightsEngine";
+import { buildImportedDomain, suggestedQuestions } from "../data/importedDataset";
+import { findPackByDashboard, answerBoardQuestion, nextBoardQuestion, type UseCasePack, type PackStep, type PackChart, type PackHeatCell } from "../data/useCasePacks";
 
 export type BiTaskKind = "dataset" | "widget" | "dashboard" | "report";
 
@@ -88,6 +92,11 @@ const ACCESS_CHIP: Record<"Private" | "Public", string> = {
 };
 
 const DASHBOARD_LIST: DashboardRow[] = [
+  // Board-demo dashboards (see ../data/useCasePacks.ts) — names must stay in
+  // sync with each pack's dashboardName, and stay plainly typeable so the
+  // Report Generator's name matching can find them.
+  { id: "dl13", status: "Approved", name: "Solstice Energy network performance", displayName: "Solstice network performance · Q2 FY25-26", packageName: "ANALYTICS", moduleName: "Operations analytics", accessLevel: "Private", scheduled: true, creatorName: "Dilip", lastActivityAgo: "2 Hrs ago", lastActivityBy: "Dilip" },
+  { id: "dl14", status: "Approved", name: "Vertex Telecom consolidated performance", displayName: "Vertex consolidated performance · Q2 FY25-26", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", scheduled: true, creatorName: "Dilip", lastActivityAgo: "3 Hrs ago", lastActivityBy: "Dilip" },
   { id: "dl1", status: "Approved", name: "Network fault trends by region", displayName: "Network fault trends", packageName: "FIBERNEO", moduleName: "Network operations", accessLevel: "Private", scheduled: true, creatorName: "Ayus Kumar", lastActivityAgo: "17 Hrs ago", lastActivityBy: "Ayus Kumar" },
   { id: "dl2", status: "Approved", name: "Field crew utilization dashboard", displayName: "Field crew utilization", packageName: "FIELD-FORCE-MGMT", moduleName: "Field operations", accessLevel: "Private", scheduled: false, creatorName: "Karan Shah", lastActivityAgo: "1 Day ago", lastActivityBy: "Karan Shah" },
   { id: "dl3", status: "Awaiting approval", name: "Customer 360 overview", displayName: "Customer 360 overview", packageName: "ANALYTICS", moduleName: "Customer intelligence", accessLevel: "Private", scheduled: true, creatorName: "Priya Nair", lastActivityAgo: "2 Days ago", lastActivityBy: "Priya Nair" },
@@ -124,6 +133,13 @@ const REAL_DASHBOARD_TO_PACKAGE: Record<string, { packageName: string; moduleNam
   "problem-management": { packageName: "ITSM", moduleName: "Service desk" },
   "procurement": { packageName: "SCM", moduleName: "Procurement analytics" },
   "site-dashboard": { packageName: "FIBERNEO", moduleName: "Network operations" },
+};
+
+// Same idea again, keyed by insightDomains.ts's domain key — for dashboards
+// built from "Ask Insights" mode (see the AI Creation Studio's studioMode).
+const INSIGHT_DOMAIN_TO_PACKAGE: Record<string, { packageName: string; moduleName: string }> = {
+  "regional-sales": { packageName: "ANALYTICS", moduleName: "Sales analytics" },
+  "procurement-ops": { packageName: "SCM", moduleName: "Procurement analytics" },
 };
 
 const MODULE_OPTIONS = ["All modules", "Network operations", "Field operations", "Customer intelligence", "Operations analytics", "Risk & fraud", "Finance analytics", "Vendor management", "Executive reporting", "FinOps"];
@@ -1188,7 +1204,39 @@ function curvePath(pts: { x: number; y: number }[]) {
   return d;
 }
 
-function SvgBarChart({ data, height = 220 }: { data: { label: string; value: number; color: string }[]; height?: number }) {
+function SvgBarChart({ data, height = 220, horizontal }: { data: { label: string; value: number; color: string }[]; height?: number; horizontal?: boolean }) {
+  if (horizontal) {
+    const W = 520, H = height;
+    const m = { t: 8, r: 34, b: 24, l: 130 };
+    const cW = W - m.l - m.r, cH = H - m.t - m.b;
+    const xMax = niceMax(Math.max(1, ...data.map((d) => d.value)));
+    const hTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => xMax * f);
+    const sxv = (v: number) => (v / xMax) * cW;
+    const slotH = cH / data.length;
+    const barH = Math.min(26, slotH * 0.55);
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block", overflow: "visible" }}>
+        <g transform={`translate(${m.l},${m.t})`}>
+          {hTicks.map((tk, i) => (
+            <g key={i}>
+              <line x1={sxv(tk)} y1={0} x2={sxv(tk)} y2={cH} stroke="var(--vw-color-gray-100)" strokeWidth={1} />
+              <text x={sxv(tk)} y={cH + 16} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{formatAxisValue(tk)}</text>
+            </g>
+          ))}
+          {data.map((d, i) => {
+            const yMid = i * slotH + slotH / 2;
+            return (
+              <g key={d.label}>
+                <rect x={0} y={yMid - barH / 2} width={Math.max(sxv(d.value), 2)} height={barH} rx={6} ry={6} fill={d.color} />
+                <text x={-8} y={yMid + 4} textAnchor="end" fontSize={11} fill="var(--vw-color-gray-500)" fontFamily="Inter, sans-serif">{d.label}</text>
+                <text x={sxv(d.value) + 7} y={yMid + 4} fontSize={11} fontWeight={600} fill="var(--vw-color-gray-600)" fontFamily="Inter, sans-serif">{d.value}</text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+    );
+  }
   const W = 520, H = height;
   const m = { t: 10, r: 8, b: 32, l: 38 };
   const cW = W - m.l - m.r, cH = H - m.t - m.b;
@@ -1222,16 +1270,32 @@ function SvgBarChart({ data, height = 220 }: { data: { label: string; value: num
   );
 }
 
-function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: string; color: string; values: number[] }[]; labels: string[]; height?: number }) {
+function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: string; color: string; values: (number | null)[]; dashed?: boolean }[]; labels: string[]; height?: number }) {
   const W = 520, H = height;
   const m = { t: 10, r: 8, b: 26, l: 34 };
   const cW = W - m.l - m.r, cH = H - m.t - m.b;
-  const yMax = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
+  const allNums = series.flatMap((s) => s.values).filter((v): v is number => v !== null);
+  const yMax = niceMax(Math.max(1, ...allNums));
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => yMax * f);
   const sy = (v: number) => cH - (v / yMax) * cH;
   const sx = (i: number) => (i / Math.max(1, labels.length - 1)) * cW;
-  const pointsFor = (values: number[]) => values.map((v, i) => ({ x: sx(i), y: sy(v) }));
-  const primaryPts = pointsFor(series[0]?.values ?? []);
+  // Null values split a series into runs — used for actual-vs-projected
+  // forecast lines where each series covers only part of the x-axis.
+  const pointRuns = (values: (number | null)[]) => {
+    const runs: { x: number; y: number }[][] = [];
+    let run: { x: number; y: number }[] = [];
+    values.forEach((v, i) => {
+      if (v === null) {
+        if (run.length) { runs.push(run); run = []; }
+      } else {
+        run.push({ x: sx(i), y: sy(v) });
+      }
+    });
+    if (run.length) runs.push(run);
+    return runs;
+  };
+  const primaryComplete = (series[0]?.values ?? []).every((v) => v !== null);
+  const primaryPts = primaryComplete ? pointRuns(series[0]?.values ?? []).flat() : [];
   const gradId = `dashPreviewAreaGrad${series[0]?.name.replace(/\s+/g, "") ?? ""}`;
   const areaPath = primaryPts.length
     ? `${curvePath(primaryPts)} L${primaryPts[primaryPts.length - 1].x.toFixed(1)},${cH} L${primaryPts[0].x.toFixed(1)},${cH} Z`
@@ -1254,11 +1318,13 @@ function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: st
             </g>
           ))}
           {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
-          {series.map((s) => (
-            <path key={s.name} d={curvePath(pointsFor(s.values))} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />
-          ))}
-          {series.map((s) => pointsFor(s.values).map((p, i) => (
-            <circle key={`${s.name}-${i}`} cx={p.x} cy={p.y} r={3.5} fill={s.color} />
+          {series.map((s) => pointRuns(s.values).map((run, ri) => run.length > 1 && (
+            <path key={`${s.name}-run${ri}`} d={curvePath(run)} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinecap="round" strokeDasharray={s.dashed ? "6 5" : undefined} />
+          )))}
+          {series.map((s) => pointRuns(s.values).flat().map((p, i) => (
+            s.dashed
+              ? <circle key={`${s.name}-${i}`} cx={p.x} cy={p.y} r={3.5} fill="#FFFFFF" stroke={s.color} strokeWidth={2} />
+              : <circle key={`${s.name}-${i}`} cx={p.x} cy={p.y} r={3.5} fill={s.color} />
           )))}
           {labels.map((lbl, i) => (
             <text key={lbl} x={sx(i)} y={cH + 16} textAnchor="middle" fontSize={10.5} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">{lbl}</text>
@@ -1278,8 +1344,8 @@ function SvgAreaLineChart({ series, labels, height = 240 }: { series: { name: st
   );
 }
 
-function KpiTile({ icon: Icon, tint, tintBg, label, value, sub, subTone }: {
-  icon: typeof Database; tint: string; tintBg: string; label: string; value: string; sub?: string; subTone?: "is-positive" | "is-negative";
+function KpiTile({ icon: Icon, tint, tintBg, label, value, sub, subTone, subSuffix = " vs last week" }: {
+  icon: typeof Database; tint: string; tintBg: string; label: string; value: string; sub?: string; subTone?: "is-positive" | "is-negative"; subSuffix?: string;
 }) {
   return (
     <div className="vw-card-section" style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
@@ -1291,7 +1357,7 @@ function KpiTile({ icon: Icon, tint, tintBg, label, value, sub, subTone }: {
       </div>
       <div className="vw-card-metric-xl">{value}</div>
       {sub && (subTone
-        ? <div className={`vw-card-variance ${subTone}`}>{sub} vs last week</div>
+        ? <div className={`vw-card-variance ${subTone}`}>{sub}{subSuffix}</div>
         : <div className="vw-card-description" style={{ fontSize: 12 }}>{sub}</div>
       )}
     </div>
@@ -1323,6 +1389,72 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle: str
       {children}
     </div>
   );
+}
+
+// ── Board-demo pack renderers (see ../data/useCasePacks.ts) ────────────────
+function SvgDonutChart({ segments, height = 200 }: { segments: { label: string; value: number; color: string }[]; height?: number }) {
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1;
+  const size = 168, R = 60, SW = 26, C = 2 * Math.PI * R;
+  let offset = 0;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, minHeight: height }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="var(--vw-color-gray-100)" strokeWidth={SW} />
+          {segments.map((s) => {
+            const frac = s.value / total;
+            const el = (
+              <circle
+                key={s.label} cx={size / 2} cy={size / 2} r={R} fill="none" stroke={s.color} strokeWidth={SW}
+                strokeDasharray={`${(frac * C).toFixed(2)} ${C.toFixed(2)}`} strokeDashoffset={(-offset * C).toFixed(2)}
+              />
+            );
+            offset += frac;
+            return el;
+          })}
+        </g>
+        <text x={size / 2} y={size / 2 - 1} textAnchor="middle" fontSize={26} fontWeight={700} fill="var(--vw-color-gray-900)" fontFamily="Poppins, sans-serif">{total}</text>
+        <text x={size / 2} y={size / 2 + 18} textAnchor="middle" fontSize={11} fill="var(--vw-color-gray-400)" fontFamily="Inter, sans-serif">cases</text>
+      </svg>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+        {segments.map((s) => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, fontFamily: "Inter, sans-serif", color: "var(--vw-color-gray-700)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+            </span>
+            <span style={{ fontWeight: 600, flexShrink: 0 }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const HEAT_TONE: Record<PackHeatCell["tone"], { bg: string; fg: string; word: string }> = {
+  good: { bg: "#E3F6E4", fg: "#1E7B34", word: "Healthy" },
+  bad: { bg: "#FEE2E2", fg: "#B91C1C", word: "Attention" },
+};
+
+function RegionHeatStrip({ cells }: { cells: PackHeatCell[] }) {
+  return (
+    <div className="vw-grid vw-gap-sm" style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))` }}>
+      {cells.map((c) => (
+        <div key={c.region} style={{ background: HEAT_TONE[c.tone].bg, borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: HEAT_TONE[c.tone].fg, opacity: 0.85 }}>{c.region}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: HEAT_TONE[c.tone].fg, fontFamily: "Poppins, sans-serif" }}>{c.value}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 600, color: HEAT_TONE[c.tone].fg, opacity: 0.7, textTransform: "uppercase", letterSpacing: 0.4 }}>{HEAT_TONE[c.tone].word}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Renders any pack chart spec through the shared SVG primitives. */
+function PackChartView({ chart, height = 190 }: { chart: PackChart; height?: number }) {
+  if (chart.kind === "donut") return <SvgDonutChart segments={chart.segments} height={height} />;
+  if (chart.kind === "line") return <SvgAreaLineChart series={chart.series} labels={chart.labels} height={height} />;
+  return <SvgBarChart data={chart.bars} height={height} horizontal={chart.kind === "barh"} />;
 }
 
 function StatusListCard({ title, total, icon: Icon, rows }: {
@@ -1373,6 +1505,9 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
   const isApproved = approval === "Approved";
   const isAwaiting = approval === "Awaiting approval";
   const canDiscard = !approval || approval === "Draft";
+  // Board-demo dashboards render their pack's staged content instead of the
+  // generic seeded mock (see ../data/useCasePacks.ts).
+  const pack = findPackByDashboard(title);
 
   const submit = () => {
     if (submitting) return;
@@ -1419,7 +1554,7 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
                 <span className="vw-page-title">{title}</span>
                 {approval && <span className={`vw-chip ${STATUS_CHIP[approval]}`} style={{ fontSize: 11 }}>{approval}</span>}
               </div>
-              <div className="vw-page-description" style={{ marginTop: 2 }}>{DASHBOARD_SUBTITLE}</div>
+              <div className="vw-page-description" style={{ marginTop: 2 }}>{pack ? pack.dashboardSubtitle : DASHBOARD_SUBTITLE}</div>
             </div>
             <div className="vw-flex vw-gap-xs" style={{ flexShrink: 0 }}>
               <button type="button" onClick={onExplainAi} className="nst-btn nst-btn--sm">
@@ -1445,6 +1580,43 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
           )}
         </div>
 
+        {pack ? (
+          <>
+            {/* Pack KPI strip */}
+            <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+              {pack.kpis.map((k, i) => {
+                const icons = [BarChart2, UserCircle, CheckCircle2, Database];
+                const tints = [
+                  { tint: "var(--vw-color-blue-600)", bg: "var(--vw-color-blue-50)" },
+                  { tint: "var(--vw-color-amber-600)", bg: "var(--vw-color-amber-50)" },
+                  { tint: "var(--vw-color-emerald-600)", bg: "var(--vw-color-emerald-50)" },
+                  { tint: "var(--vw-color-purple-600)", bg: "var(--vw-color-purple-50)" },
+                ];
+                return (
+                  <KpiTile
+                    key={k.label} icon={icons[i % icons.length]} tint={tints[i % tints.length].tint} tintBg={tints[i % tints.length].bg}
+                    label={k.label} value={k.value} sub={k.sub} subTone={k.subTone} subSuffix=""
+                  />
+                );
+              })}
+            </div>
+            {/* Zone/circle heatmap */}
+            <div className="vw-card-section">
+              <div className="vw-card-title-sm">{pack.heatmap.title}</div>
+              <div className="vw-card-description" style={{ marginBottom: 14 }}>{pack.heatmap.subtitle}</div>
+              <RegionHeatStrip cells={pack.heatmap.cells} />
+            </div>
+            {/* Overview charts */}
+            <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+              {pack.overviewCharts.map((c) => (
+                <ChartCard key={c.title} title={c.title} subtitle={c.subtitle}>
+                  <PackChartView chart={c.chart} height={200} />
+                </ChartCard>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
         {/* KPI row */}
         <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <KpiTile icon={Database} tint="var(--vw-color-blue-600)" tintBg="var(--vw-color-blue-50)" label="Total records" value={totalRecords.toLocaleString()} sub="Across every widget on this dashboard" />
@@ -1489,6 +1661,8 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
             <SvgBarChart data={dataSourceBars} height={200} />
           </ChartCard>
         </div>
+          </>
+        )}
       </div>
 
       {/* Details — right panel, not inline */}
@@ -1501,7 +1675,14 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
             </button>
           </div>
           <div className="vw-flex vw-flex-col vw-gap-xs">
-            {DASHBOARD_DETAIL_WIDGETS.map((w) => (
+            {(pack
+              ? [
+                  { name: pack.heatmap.title, desc: pack.heatmap.subtitle },
+                  ...pack.overviewCharts.map((c) => ({ name: c.title, desc: c.subtitle })),
+                  ...pack.steps.map((s) => ({ name: s.matched.widget, desc: `${s.matched.type} — ${s.matched.source}` })),
+                ]
+              : DASHBOARD_DETAIL_WIDGETS
+            ).map((w) => (
               <div key={w.name} className="vw-card-child-shaded">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--vw-color-gray-800)" }}>{w.name}</div>
                 <div className="vw-card-description" style={{ fontSize: 11.5 }}>{w.desc}</div>
@@ -2179,12 +2360,18 @@ function LivePreviewCard({ kind, title, approval, recurring, onEdit, onExplainAi
 }
 
 // ── Chat panel — used on the right (40%) of the chat view ──────────────────
-function ChatPanel({ meta, task, intro, onClose }: { meta: { label: string }; task: BiTask; intro?: string; onClose: () => void }) {
-  const [messages, setMessages] = useState<{ id: string; role: "assistant" | "user"; text: string }[]>([
+// When the open dashboard is a board-demo pack (useCasePacks.ts), the chat
+// becomes the scripted board Q&A: each question is matched to a governed
+// step and answered with a "Matched from your platform" panel, a chart, and
+// the grounded narrative. Non-pack items keep the old simulated behavior.
+function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string }; task: BiTask; intro?: string; onClose: () => void; pack?: UseCasePack | null }) {
+  const [messages, setMessages] = useState<{ id: string; role: "assistant" | "user"; text: string; answer?: PackStep }[]>([
     {
       id: "m0",
       role: "assistant",
-      text: intro
+      text: pack
+        ? `${pack.company} board Q&A is ready. Ask about this quarter's numbers — I'll answer from the governed datasets and render every answer as a widget.`
+        : intro
         ? `Let me explain "${task.title}". ${intro} Ask me anything about how it works — or ask me to change it.`
         : `Hi, I'm the ${meta.label} agent. Ask me anything about "${task.title}" — I can adjust it, explain it, or rebuild a section.`,
     },
@@ -2192,14 +2379,32 @@ function ChatPanel({ meta, task, intro, onClose }: { meta: { label: string }; ta
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
 
-  const send = () => {
-    const text = input.trim();
+  const answeredIds = messages.filter((m) => m.answer).map((m) => m.answer!.id);
+  const nextQuestion = pack ? nextBoardQuestion(pack, answeredIds) : null;
+
+  const send = (raw?: string) => {
+    const text = (raw ?? input).trim();
     if (!text || typing) return;
     setMessages((m) => [...m, { id: `u${m.length}`, role: "user", text }]);
     setInput("");
     setTyping(true);
     setTimeout(() => {
-      setMessages((m) => [...m, { id: `a${m.length}`, role: "assistant", text: `Got it — updating "${task.title}" based on: "${text}". The preview on the left reflects the latest version.` }]);
+      if (pack) {
+        const step = answerBoardQuestion(pack, text, answeredIds);
+        if (step) {
+          setMessages((m) => [...m, { id: `a${m.length}`, role: "assistant", text: step.narrative, answer: step }]);
+        } else {
+          const remaining = pack.steps.filter((s) => !answeredIds.includes(s.id)).map((s) => `"${s.question}"`);
+          setMessages((m) => [...m, {
+            id: `a${m.length}`, role: "assistant",
+            text: remaining.length
+              ? `I couldn't match that to a governed metric on this dashboard. This board pack can answer: ${remaining.join(" · ")}`
+              : "That's everything in this board pack — every question has been answered. Ask the Report Generator to compile this into a board report.",
+          }]);
+        }
+      } else {
+        setMessages((m) => [...m, { id: `a${m.length}`, role: "assistant", text: `Got it — updating "${task.title}" based on: "${text}". The preview on the left reflects the latest version.` }]);
+      }
       setTyping(false);
     }, 900);
   };
@@ -2218,16 +2423,52 @@ function ChatPanel({ meta, task, intro, onClose }: { meta: { label: string }; ta
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "border border-border bg-card text-foreground"}`}
-              style={{ fontSize: "13px", lineHeight: 1.5 }}
-            >
-              {m.text}
-            </div>
+            {m.answer ? (
+              <div className="w-full rounded-[12px] border border-border bg-card p-3">
+                <div className="mb-2 rounded-[10px] border border-border bg-[#FAFBFD] p-2.5">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize: "10.5px", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                      <BookOpen style={{ width: 12, height: 12 }} /> Matched from your platform
+                    </span>
+                    {m.answer.matched.preview && (
+                      <span className="vw-chip vw-chip--warning" style={{ fontSize: "10.5px", flexShrink: 0 }}>Preview / Beta</span>
+                    )}
+                  </div>
+                  {([["Widget", m.answer.matched.widget], ["Type", m.answer.matched.type], ["Dataset", m.answer.matched.dataset], ["Source", m.answer.matched.source]] as const).map(([k, v]) => (
+                    <div key={k} className="flex gap-2" style={{ fontSize: "11.5px", lineHeight: 1.6 }}>
+                      <span className="w-[52px] flex-shrink-0 text-muted-foreground">{k}</span>
+                      <span className="min-w-0 text-foreground" style={{ fontWeight: 500 }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mb-1 text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>{m.answer.matched.widget}</div>
+                <PackChartView chart={m.answer.chart} height={170} />
+                <div className="mt-2 text-foreground" style={{ fontSize: "12.5px", lineHeight: 1.55 }}>{m.text}</div>
+              </div>
+            ) : (
+              <div
+                className={`max-w-[85%] rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "border border-border bg-card text-foreground"}`}
+                style={{ fontSize: "13px", lineHeight: 1.5 }}
+              >
+                {m.text}
+              </div>
+            )}
           </div>
         ))}
         {typing && <div className="text-muted-foreground" style={{ fontSize: "12px" }}>Thinking…</div>}
       </div>
+      {pack && nextQuestion && !typing && (
+        <div className="flex-shrink-0 px-3 pt-2">
+          <button
+            onClick={() => send(nextQuestion)}
+            className="inline-flex w-full items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-left text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+            style={{ fontSize: "11.5px" }}
+          >
+            <Sparkles className="h-3 w-3 flex-shrink-0 opacity-60" />
+            <span className="min-w-0 truncate">{nextQuestion}</span>
+          </button>
+        </div>
+      )}
       <div className="flex-shrink-0 border-t border-border p-3">
         <div className="flex items-center gap-2 rounded-[10px] border border-border bg-[#FAFBFD] px-3 py-2">
           <input
@@ -2238,7 +2479,7 @@ function ChatPanel({ meta, task, intro, onClose }: { meta: { label: string }; ta
             className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
             style={{ fontSize: "13px" }}
           />
-          <button onClick={send} className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white hover:opacity-90">
+          <button onClick={() => send()} className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white hover:opacity-90">
             <Send className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -2274,7 +2515,7 @@ function FieldLabel({ label, optional }: { label: string; optional?: boolean }) 
 
 export interface BreadcrumbState { extra: { label: string }[]; backToRoot?: () => void }
 
-export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void; initialPrompt?: string }) {
+export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboard }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void; initialPrompt?: string; initialDashboard?: string }) {
   const meta = KIND_META[kind];
   const tasks = TASKS_BY_KIND[kind];
   const userName = useCurrentUser();
@@ -2292,6 +2533,16 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
   const openPreview = (t: BiTask) => { setSelected(t); setView("preview"); };
   const openChat = (t: BiTask, explain = false) => { setSelected(t); setExplainIntro(explain); setView("chat"); };
   const backToList = () => { setView("list"); setSelected(null); };
+
+  // Deep link from Home's "Needs attention" alerts — jump straight to the
+  // flagged dashboard's preview (board-demo Step 0).
+  useEffect(() => {
+    if (kind === "dashboard" && initialDashboard) {
+      const row = DASHBOARD_LIST.find((r) => r.name === initialDashboard);
+      if (row) openPreview(dashboardRowToTask(row));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const flashAndBack = (message: string) => {
     setFlash(message);
     backToList();
@@ -2326,6 +2577,18 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
   const [studioDashboardWidgetSelection, setStudioDashboardWidgetSelection] = useState<string[]>([]);
   const [studioRunnerUp, setStudioRunnerUp] = useState<string | null>(null);
   const [studioManualOverride, setStudioManualOverride] = useState(false);
+  // "Ask Insights" — dashboard-only conversational Q&A (see ../data/insightsEngine.ts).
+  // Once a message is classified as a real analytical question, studioMode
+  // flips to "ask" for the rest of the session: every further message is
+  // answered as a question (a pinned chart), not treated as a create command.
+  type AskAnswerRecord = { id: string; question: string; result: AnswerResult; pinned: boolean };
+  const [studioMode, setStudioMode] = useState<"create" | "ask">("create");
+  const [askAnswers, setAskAnswers] = useState<AskAnswerRecord[]>([]);
+  const [askDomain, setAskDomain] = useState<InsightDomain | null>(null);
+  // Datasets the user imported (CSV) this session — when any exist, questions
+  // are answered ONLY from them, never from the built-in sample domains.
+  const [importedDomains, setImportedDomains] = useState<InsightDomain[]>([]);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const initialPromptConsumed = useRef(false);
 
   const STUDIO_STEPS: Record<BiTaskKind, string[]> = {
@@ -2440,6 +2703,45 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
     return "Got it — I couldn't find a specific application in that, so please choose the details on the right.";
   };
 
+  // "Import data" — reads CSV files in the browser, infers each file's
+  // schema (see ../data/importedDataset.ts), narrates what was understood in
+  // chat, and flips the studio into ask mode so every question from here on
+  // is answered from the user's own rows.
+  const handleImportFiles = async (files: FileList | File[]) => {
+    const list = Array.from(files).filter((f) => /\.csv$/i.test(f.name) || f.type === "text/csv");
+    if (!list.length) return;
+    setStudioThinking(true);
+    let domains = importedDomains;
+    let lastDomain: InsightDomain | null = null;
+    const notes: string[] = [];
+    for (const file of list) {
+      try {
+        const text = await file.text();
+        const { domain, report } = buildImportedDomain(file.name, text, domains);
+        domains = [...domains.filter((d) => d.key !== domain.key), domain];
+        lastDomain = domain;
+        notes.push(
+          report.appended
+            ? `Added ${report.addedRows} rows from ${report.fileName} to ${domain.label} — now ${report.totalRows} rows${report.timeRange ? ` (${report.timeRange})` : ""}. Ask your questions again to see the updated picture.`
+            : `I read ${report.fileName} — ${report.totalRows} rows. Categories: ${report.dimensions.join(", ") || "none"}. Measures: ${report.measures.join(", ")}.${report.timeColumn ? ` Time: ${report.timeColumn} (${report.timeRange}).` : ""}${report.skippedColumns.length ? ` I skipped ${report.skippedColumns.join(", ")}.` : ""}`
+        );
+      } catch (err) {
+        notes.push(`I couldn't read ${file.name} — ${err instanceof Error ? err.message : "unsupported format"}.`);
+      }
+    }
+    setTimeout(() => {
+      setStudioThinking(false);
+      if (lastDomain) {
+        const tryQ = suggestedQuestions(lastDomain)[0];
+        notes.push(`Ask me anything about it${tryQ ? ` — try "${tryQ}"` : ""}, and I'll answer from your file.`);
+        setImportedDomains(domains);
+        setAskDomain(lastDomain);
+        setStudioMode("ask");
+      }
+      setStudioMessages((m) => [...m, ...notes.map((text) => ({ role: "agent" as const, text }))]);
+    }, 700);
+  };
+
   const sendStudioMessage = (raw?: string) => {
     const text = (raw ?? studioInput).trim();
     if (!text) return;
@@ -2479,6 +2781,25 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
         setStudioMatchedDataset(top);
         setStudioMatchedWidget(null); setStudioMatchedDashboard(null);
         reply = `Found it — "${top.dataset.name}" already exists in your ${top.dashboard.name}. Review the governed query on the right and click Generate when you're ready.`;
+      } else if (kind === "dashboard" && (studioMode === "ask" || isAnalyticalQuestion(text, askDomain ?? undefined, importedDomains.length ? importedDomains : undefined))) {
+        // When the user has imported their own data, questions are answered
+        // ONLY from it — never silently from the built-in sample domains.
+        const questionDomains = importedDomains.length ? importedDomains : undefined;
+        const parsed = parseQuestion(text, askDomain ?? undefined, questionDomains);
+        if (parsed) {
+          const result = answerQuestion(parsed);
+          const id = `ask-${Date.now()}-${askAnswers.length}`;
+          setAskAnswers((a) => [...a, { id, question: text, result, pinned: true }]);
+          setAskDomain(parsed.domain);
+          setStudioMode("ask");
+          const sourceNote = parsed.domain.key.startsWith("imported-") ? ` (from ${parsed.domain.label})` : "";
+          reply = `Here's ${result.title.toLowerCase()}${sourceNote} — pinned to your dashboard. Ask another question, or build the dashboard from what you've pinned so far.`;
+        } else if (importedDomains.length) {
+          const d = importedDomains[importedDomains.length - 1];
+          reply = `I couldn't match that to your imported data (${d.label}). Try asking about ${d.measures.map((x) => x.label.toLowerCase()).join(" or ")}${d.dimensions.length ? ` by ${d.dimensions.map((x) => x.label.toLowerCase()).join(" or ")}` : ""}.`;
+        } else {
+          reply = "I couldn't find a metric to analyze in that — try asking about revenue, units, spend, or PO count, broken down by region, product, vendor or category.";
+        }
       } else if (kind === "dashboard" && !studioManualOverride && searchDashboards(text).length > 0) {
         const matches = searchDashboards(text);
         const top = matches[0];
@@ -2529,13 +2850,35 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
     }, 1650);
   };
 
+  const handleBuildFromInsights = () => {
+    const pinnedCount = askAnswers.filter((a) => a.pinned).length;
+    if (pinnedCount === 0) return;
+    setStudioStage("generating");
+    setStudioSteps(0);
+    setStudioMessages((m) => [...m, { role: "agent", text: `Building your dashboard from ${pinnedCount} pinned insight${pinnedCount === 1 ? "" : "s"}…` }]);
+    setTimeout(() => setStudioSteps(1), 500);
+    setTimeout(() => setStudioSteps(2), 1050);
+    setTimeout(() => {
+      setStudioSteps(3);
+      setStudioTitle(`${askDomain?.label ?? "Insights"} insights dashboard`);
+      setStudioSeed(Date.now());
+      setStudioStage("result");
+      setStudioMessages((m) => [...m, { role: "agent", text: "Here's your dashboard — take a look on the right. Save it as a draft to keep working on it, or ask another question to add more." }]);
+    }, 1650);
+  };
+
   const handleSaveDraft = () => {
     const id = `ai-${Date.now()}`;
     const realDashboardKey = hasWidgetMatch ? studioMatchedWidget?.dashboard.key
       : hasDatasetMatch ? studioMatchedDataset?.dashboard.key
       : hasDashboardMatch ? studioMatchedDashboard?.dashboard.key
       : undefined;
-    const mapping = (realDashboardKey && REAL_DASHBOARD_TO_PACKAGE[realDashboardKey])
+    const mapping = (kind === "dashboard" && studioMode === "ask" && askDomain
+        ? (askDomain.key.startsWith("imported-")
+            ? { packageName: "ANALYTICS", moduleName: "Ad hoc analytics" }
+            : INSIGHT_DOMAIN_TO_PACKAGE[askDomain.key])
+        : undefined)
+      ?? (realDashboardKey ? REAL_DASHBOARD_TO_PACKAGE[realDashboardKey] : undefined)
       ?? APP_TO_PACKAGE[studioApplication ?? ""]
       ?? { packageName: "ANALYTICS", moduleName: "Operations analytics" };
     if (kind === "dashboard") {
@@ -2574,6 +2917,8 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
     role: "agent",
     text: kind === "report"
       ? `Hi! I'm the ${meta.label}. Tell me which dashboards to pull from and how often, and I'll draft the report.`
+      : kind === "dashboard"
+      ? `Hi! I'm the ${meta.label}. Import a CSV report and ask me real questions about it — like "What is the strongest selling region?" — and I'll turn every answer into a widget you can pin. You can also just describe the dashboard you'd like.`
       : `Hi! I'm the ${meta.label}. Describe the ${TASK_NOUN[kind]} you'd like and I'll get started — mention the application or data if you know it.`,
   });
 
@@ -2583,6 +2928,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
     setStudioWidgetType("Bar chart"); setStudioReportDashboards([]); setStudioReportFrequency(null);
     setStudioMatchedWidget(null); setStudioMatchedDataset(null); setStudioMatchedDashboard(null);
     setStudioDashboardWidgetSelection([]); setStudioRunnerUp(null); setStudioManualOverride(false);
+    setStudioMode("create"); setAskAnswers([]); setAskDomain(null); setImportedDomains([]);
     setStudioTitle(""); setStudioExpanded(false);
   };
 
@@ -2700,7 +3046,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
             )}
           </div>
           <div className="w-[40%] flex-shrink-0">
-            <ChatPanel meta={meta} task={selected} intro={explainIntro ? EXPLAIN[kind] : undefined} onClose={() => setView("preview")} />
+            <ChatPanel meta={meta} task={selected} intro={explainIntro ? EXPLAIN[kind] : undefined} onClose={() => setView("preview")} pack={kind === "dashboard" ? findPackByDashboard(selected.title) : null} />
           </div>
         </div>
       </div>
@@ -2708,7 +3054,54 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
   }
 
   if (view === "studio") {
+    // Renders one Ask Insights answer using the same chart primitives the
+    // rest of the app already uses — no new chart components.
+    const renderAnswerChart = (result: AnswerResult) => {
+      if (result.chartType === "kpi") {
+        return (
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <div className="vw-card-metric-xxxl">{result.kpiValue}</div>
+          </div>
+        );
+      }
+      if (result.chartType === "line" && result.series && result.labels) {
+        return <SvgAreaLineChart series={result.series} labels={result.labels} height={200} />;
+      }
+      if (result.chartType === "bar" && result.bars) {
+        return <SvgBarChart data={result.bars} height={200} />;
+      }
+      return null;
+    };
+
+    // The final "dashboard" for Ask Insights mode is literally a grid of the
+    // charts the user pinned while asking questions — not the generic mock
+    // DashboardPreview — so the payoff is honest: these are the exact
+    // widgets just asked for, arranged.
+    const renderPinnedDashboard = () => {
+      const pinned = askAnswers.filter((a) => a.pinned);
+      return (
+        <div className="vw-flex vw-flex-col vw-page-gap" style={{ fontFamily: "Poppins, sans-serif" }}>
+          <div className="vw-card-section">
+            <span className="vw-page-title">{studioTitle}</span>
+            <div className="vw-page-description" style={{ marginTop: 2 }}>
+              Built from {pinned.length} question{pinned.length === 1 ? "" : "s"} you asked — live insights, arranged as a dashboard.
+            </div>
+          </div>
+          <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+            {pinned.map((a) => (
+              <ChartCard key={a.id} title={a.result.title} subtitle={a.question}>
+                {renderAnswerChart(a.result)}
+              </ChartCard>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
     const renderResultPreview = () => {
+      if (kind === "dashboard" && studioMode === "ask") {
+        return renderPinnedDashboard();
+      }
       if (kind === "widget") {
         return (
           <WidgetPreview
@@ -2789,6 +3182,25 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
           </div>
           <div className="flex-shrink-0 border-t border-border px-4 py-3">
             <div className="flex items-end gap-2 rounded-[12px] border border-border bg-card px-3 py-2 focus-within:border-primary/40">
+              {kind === "dashboard" && (
+                <>
+                  <input
+                    ref={importFileInputRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => { if (e.target.files?.length) handleImportFiles(e.target.files); e.target.value = ""; }}
+                  />
+                  <button
+                    onClick={() => importFileInputRef.current?.click()}
+                    title="Import data (CSV)"
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-primary"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </button>
+                </>
+              )}
               <textarea
                 value={studioInput}
                 onChange={(e) => setStudioInput(e.target.value)}
@@ -2819,15 +3231,102 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt }: { kind: BiTa
               <div className="text-foreground" style={{ fontSize: "14px", fontWeight: 600 }}>
                 {kind === "report" ? "Which dashboards should this report cover?" : `Describe the ${TASK_NOUN[kind]} you'd like`}
               </div>
-              <p className="mt-1.5 max-w-[320px] text-muted-foreground" style={{ fontSize: "12.5px", lineHeight: 1.5 }}>
+              <p className="mt-1.5 max-w-[340px] text-muted-foreground" style={{ fontSize: "12.5px", lineHeight: 1.5 }}>
                 {kind === "report"
                   ? "Mention the dashboards and how often — I'll fill in the rest, or pick manually."
+                  : kind === "dashboard"
+                  ? "Import a CSV report and ask questions about your own data — every answer becomes a widget. Or describe a dashboard and I'll build it from your platform."
                   : "Mention the application or data if you know it — I'll fill in the rest, or you can pick it manually."}
               </p>
+              {kind === "dashboard" && (
+                <>
+                  <button
+                    onClick={() => importFileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) handleImportFiles(e.dataTransfer.files); }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-[10px] border border-dashed border-primary/40 bg-primary/5 px-4 py-2.5 text-primary transition-colors hover:border-primary/70 hover:bg-primary/10"
+                    style={{ fontSize: "12.5px", fontWeight: 600 }}
+                  >
+                    <Upload className="h-4 w-4" /> Import data (CSV) — or drop a file here
+                  </button>
+                  {importedDomains.length > 0 && (
+                    <div className="mt-4 w-full max-w-[440px] rounded-[12px] border border-border bg-card p-4 text-left">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Database className="h-4 w-4 text-primary" />
+                        <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Imported data</span>
+                      </div>
+                      {importedDomains.map((d) => (
+                        <div key={d.key} className="mb-2 last:mb-0">
+                          <div className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>
+                            {d.label} <span className="text-muted-foreground" style={{ fontSize: "11px", fontWeight: 400 }}>· {d.rows.length} rows</span>
+                          </div>
+                          <div className="text-muted-foreground" style={{ fontSize: "11.5px", lineHeight: 1.5 }}>
+                            Categories: {d.dimensions.map((x) => x.label).join(", ") || "—"} · Measures: {d.measures.map((x) => x.label).join(", ")}
+                            {d.timeOrder.length ? ` · ${d.timeOrder[0]} – ${d.timeOrder[d.timeOrder.length - 1]}` : ""}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-4 flex max-w-[440px] flex-wrap justify-center gap-2">
+                    {(importedDomains.length
+                      ? suggestedQuestions(importedDomains[importedDomains.length - 1])
+                      : ["What is the strongest selling region?", "Which region has the highest units of Laptops sold?", "Which vendor has the highest spend?"]
+                    ).map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => sendStudioMessage(q)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+                        style={{ fontSize: "11.5px" }}
+                      >
+                        <Sparkles className="h-3 w-3 opacity-60" />{q}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {studioStage === "verify" && (
+          {studioStage === "verify" && kind === "dashboard" && studioMode === "ask" && (
+            <div className="mx-auto max-w-[640px]">
+              <div className="mb-4 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-foreground" style={{ fontSize: "14px", fontWeight: 600 }}>Insights so far</span>
+              </div>
+              <div className="space-y-3">
+                {askAnswers.map((a) => (
+                  <div key={a.id} className="rounded-[12px] border border-border bg-card p-4">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-muted-foreground" style={{ fontSize: "11px" }}>{a.question}</div>
+                        <div className="text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>{a.result.title}</div>
+                      </div>
+                      <button
+                        onClick={() => setAskAnswers((cur) => cur.map((x) => (x.id === a.id ? { ...x, pinned: !x.pinned } : x)))}
+                        className={`nst-btn nst-btn--sm flex-shrink-0${a.pinned ? " is-active" : ""}`}
+                      >
+                        {a.pinned ? "Pinned" : "Pin"}
+                      </button>
+                    </div>
+                    {renderAnswerChart(a.result)}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={handleBuildFromInsights}
+                  disabled={askAnswers.filter((a) => a.pinned).length === 0}
+                  className="inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-2.5 text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+                  style={{ fontSize: "13px", fontWeight: 600 }}
+                >
+                  <Sparkles className="h-4 w-4" /> Build dashboard from {askAnswers.filter((a) => a.pinned).length} pinned insight{askAnswers.filter((a) => a.pinned).length === 1 ? "" : "s"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {studioStage === "verify" && !(kind === "dashboard" && studioMode === "ask") && (
             <div className="mx-auto max-w-[640px]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />

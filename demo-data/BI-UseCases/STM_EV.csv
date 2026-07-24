@@ -1,0 +1,10 @@
+Region,Subscriber_ID,Ticket_ID,Ticket_Type,SLA_Status,Resolution_Delay_Days,Quarter
+West,SUB-WES-021,TKT-WES-3301,Charger Repair,Breached,9,Q2 FY25-26
+West,SUB-WES-024,TKT-WES-3305,Charger Repair,Breached,11,Q2 FY25-26
+West,SUB-WES-027,TKT-WES-3310,Billing Correction,Met,0,Q2 FY25-26
+West,SUB-WES-029,TKT-WES-3299,Scheduled Maintenance,Met,1,Q2 FY25-26
+North,SUB-NOR-041,TKT-NOR-4110,Charger Repair,Met,1,Q2 FY25-26
+South,SUB-SOU-051,TKT-SOU-5205,Scheduled Maintenance,Met,1,Q2 FY25-26
+South,SUB-SOU-054,TKT-SOU-5209,Billing Correction,Met,0,Q2 FY25-26
+East,SUB-EAS-061,TKT-EAS-6112,Charger Repair,Met,2,Q2 FY25-26
+Central,SUB-CEN-071,TKT-CEN-7108,Scheduled Maintenance,Met,1,Q2 FY25-26
