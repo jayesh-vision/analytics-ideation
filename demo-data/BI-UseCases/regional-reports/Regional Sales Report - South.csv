@@ -1,0 +1,25 @@
+Region,Product,Month,Units,Revenue,Remarks
+South,Smartphones,Oct-25,65,40300,—
+South,Tablets,Oct-25,46,18860,—
+South,Wearables,Oct-25,37,8510,—
+South,Accessories,Oct-25,26,1430,—
+South,Smartphones,Nov-25,72,44640,—
+South,Tablets,Nov-25,52,21320,—
+South,Wearables,Nov-25,41,9430,—
+South,Accessories,Nov-25,28,1540,—
+South,Smartphones,Dec-25,76,47120,Stock shortage
+South,Tablets,Dec-25,55,22550,—
+South,Wearables,Dec-25,44,10120,—
+South,Accessories,Dec-25,30,1650,—
+South,Smartphones,Jan-26,62,38440,Distributor exit — coverage gap
+South,Tablets,Jan-26,44,18040,Distributor exit — coverage gap
+South,Wearables,Jan-26,35,8050,Stock shortage
+South,Accessories,Jan-26,24,1320,Distributor exit — coverage gap
+South,Smartphones,Feb-26,55,34100,Distributor exit — coverage gap
+South,Tablets,Feb-26,39,15990,Stock shortage
+South,Wearables,Feb-26,31,7130,Distributor exit — coverage gap
+South,Accessories,Feb-26,21,1155,Distributor exit — coverage gap
+South,Smartphones,Mar-26,39,24180,Stock shortage
+South,Tablets,Mar-26,28,11480,Distributor exit — coverage gap
+South,Wearables,Mar-26,22,5060,Distributor exit — coverage gap
+South,Accessories,Mar-26,15,825,Stock shortage

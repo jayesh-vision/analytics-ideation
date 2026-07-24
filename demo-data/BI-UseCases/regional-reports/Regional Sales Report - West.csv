@@ -1,0 +1,25 @@
+Region,Product,Month,Units,Revenue,Remarks
+West,Smartphones,Oct-25,64,39680,—
+West,Tablets,Oct-25,46,18860,—
+West,Wearables,Oct-25,37,8510,—
+West,Accessories,Oct-25,25,1375,—
+West,Smartphones,Nov-25,71,44020,—
+West,Tablets,Nov-25,51,20910,—
+West,Wearables,Nov-25,41,9430,—
+West,Accessories,Nov-25,28,1540,—
+West,Smartphones,Dec-25,79,48980,—
+West,Tablets,Dec-25,56,22960,Logistics delay
+West,Wearables,Dec-25,45,10350,—
+West,Accessories,Dec-25,31,1705,—
+West,Smartphones,Jan-26,67,41540,—
+West,Tablets,Jan-26,48,19680,—
+West,Wearables,Jan-26,38,8740,—
+West,Accessories,Jan-26,26,1430,—
+West,Smartphones,Feb-26,73,45260,—
+West,Tablets,Feb-26,52,21320,—
+West,Wearables,Feb-26,42,9660,—
+West,Accessories,Feb-26,29,1595,—
+West,Smartphones,Mar-26,80,49600,—
+West,Tablets,Mar-26,57,23370,—
+West,Wearables,Mar-26,46,10580,—
+West,Accessories,Mar-26,32,1760,—

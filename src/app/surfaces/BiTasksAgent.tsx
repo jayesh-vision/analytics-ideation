@@ -21,6 +21,10 @@ type ApprovalStatus = "Draft" | "Awaiting approval" | "Approved" | "Rejected";
 interface BiTask {
   id: string; stage: Stage; title: string; app: string; requestedBy: string; createdOn: string; recurring?: string;
   approval?: ApprovalStatus; // only set once stage is Completed
+  // Carried through from DashboardRow for Ask Insights-composed dashboards —
+  // see DashboardRow for why.
+  insightDomain?: InsightDomain;
+  pinnedAnswers?: AskAnswerRecord[];
 }
 
 const KIND_META: Record<BiTaskKind, { label: string; icon: typeof Table2; subtitle: string }> = {
@@ -73,10 +77,21 @@ const APPROVAL_STYLE: Record<ApprovalStatus, { bg: string; fg: string }> = {
 // production Design Studio "Dashboards" list (status, name, package/module, access,
 // schedule, creator, last activity) rather than the generic task-request queue below. ──
 type DashboardStatus = ApprovalStatus;
+// One pinned Ask Insights answer — an asked question, its computed result,
+// and whether it's included in the composed dashboard. Module-level (not
+// component-local) so a saved dashboard row can carry its own pinned
+// answers, letting that dashboard's AI Assistant keep answering questions
+// against the same data after the studio session that created it has ended.
+export type AskAnswerRecord = { id: string; question: string; result: AnswerResult; pinned: boolean };
 interface DashboardRow {
   id: string; status: DashboardStatus; name: string; displayName: string;
   packageName: string; moduleName: string; accessLevel: "Private" | "Public";
   scheduled: boolean; creatorName: string; lastActivityAgo: string; lastActivityBy: string;
+  // Set only for dashboards composed from Ask Insights / imported-file
+  // analysis — lets the saved dashboard's own preview + AI Assistant keep
+  // rendering and answering from the exact data it was built from.
+  insightDomain?: InsightDomain;
+  pinnedAnswers?: AskAnswerRecord[];
 }
 
 // Chip variants from the NST registry (vw-chips.css) — see COMPONENTS.md Layer 2.
@@ -112,7 +127,10 @@ const DASHBOARD_LIST: DashboardRow[] = [
 ];
 
 function dashboardRowToTask(r: DashboardRow): BiTask {
-  return { id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo };
+  return {
+    id: r.id, stage: "Completed", approval: r.status, title: r.name, app: r.packageName, requestedBy: r.creatorName, createdOn: r.lastActivityAgo,
+    insightDomain: r.insightDomain, pinnedAnswers: r.pinnedAnswers,
+  };
 }
 
 // Maps an applicationCatalog.json application name to this table's package/module
@@ -1497,8 +1515,12 @@ const DASHBOARD_DETAIL_WIDGETS = [
   { name: "Top data sources", desc: "Bar chart — which sources feed this dashboard's widgets" },
 ];
 
-function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDiscard, hideActions }: {
+function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDiscard, hideActions, insightDomain, pinnedAnswers }: {
   title: string; approval?: ApprovalStatus; seed: number; onExplainAi: () => void; onSubmit: () => void; onDiscard: () => void; hideActions?: boolean;
+  // Set for dashboards composed from Ask Insights / imported-file analysis —
+  // renders the actual pinned widgets instead of the generic seeded mock, so
+  // reopening a saved consolidated dashboard shows real data, not filler.
+  insightDomain?: InsightDomain; pinnedAnswers?: AskAnswerRecord[];
 }) {
   const [showDetails, setShowDetails] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -1508,6 +1530,7 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
   // Board-demo dashboards render their pack's staged content instead of the
   // generic seeded mock (see ../data/useCasePacks.ts).
   const pack = findPackByDashboard(title);
+  const hasInsightContent = !pack && !!insightDomain && (pinnedAnswers?.length ?? 0) > 0;
 
   const submit = () => {
     if (submitting) return;
@@ -1554,7 +1577,11 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
                 <span className="vw-page-title">{title}</span>
                 {approval && <span className={`vw-chip ${STATUS_CHIP[approval]}`} style={{ fontSize: 11 }}>{approval}</span>}
               </div>
-              <div className="vw-page-description" style={{ marginTop: 2 }}>{pack ? pack.dashboardSubtitle : DASHBOARD_SUBTITLE}</div>
+              <div className="vw-page-description" style={{ marginTop: 2 }}>
+                {pack ? pack.dashboardSubtitle
+                  : hasInsightContent ? `Consolidated from ${insightDomain!.rows.length} rows — ${pinnedAnswers!.length} insight${pinnedAnswers!.length === 1 ? "" : "s"}. Ask AI Assistant for more.`
+                  : DASHBOARD_SUBTITLE}
+              </div>
             </div>
             <div className="vw-flex vw-gap-xs" style={{ flexShrink: 0 }}>
               <button type="button" onClick={onExplainAi} className="nst-btn nst-btn--sm">
@@ -1615,6 +1642,14 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
               ))}
             </div>
           </>
+        ) : hasInsightContent ? (
+          <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+            {pinnedAnswers!.map((a) => (
+              <ChartCard key={a.id} title={a.result.title} subtitle={a.question}>
+                <AnswerChartView result={a.result} />
+              </ChartCard>
+            ))}
+          </div>
         ) : (
           <>
         {/* KPI row */}
@@ -1681,6 +1716,8 @@ function DashboardPreview({ title, approval, seed, onExplainAi, onSubmit, onDisc
                   ...pack.overviewCharts.map((c) => ({ name: c.title, desc: c.subtitle })),
                   ...pack.steps.map((s) => ({ name: s.matched.widget, desc: `${s.matched.type} — ${s.matched.source}` })),
                 ]
+              : hasInsightContent
+              ? pinnedAnswers!.map((a) => ({ name: a.result.title, desc: a.question }))
               : DASHBOARD_DETAIL_WIDGETS
             ).map((w) => (
               <div key={w.name} className="vw-card-child-shaded">
@@ -2364,13 +2401,21 @@ function LivePreviewCard({ kind, title, approval, recurring, onEdit, onExplainAi
 // becomes the scripted board Q&A: each question is matched to a governed
 // step and answered with a "Matched from your platform" panel, a chart, and
 // the grounded narrative. Non-pack items keep the old simulated behavior.
-function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string }; task: BiTask; intro?: string; onClose: () => void; pack?: UseCasePack | null }) {
-  const [messages, setMessages] = useState<{ id: string; role: "assistant" | "user"; text: string; answer?: PackStep }[]>([
+function ChatPanel({ meta, task, intro, onClose, pack, insightDomain, initialPinned }: {
+  meta: { label: string }; task: BiTask; intro?: string; onClose: () => void; pack?: UseCasePack | null;
+  // Set for dashboards composed from Ask Insights / imported-file analysis —
+  // lets this same chat keep answering free-form questions against the exact
+  // data the dashboard was built from, after the studio session has ended.
+  insightDomain?: InsightDomain | null; initialPinned?: AskAnswerRecord[];
+}) {
+  const [messages, setMessages] = useState<{ id: string; role: "assistant" | "user"; text: string; answer?: PackStep; insightAnswer?: AnswerResult }[]>([
     {
       id: "m0",
       role: "assistant",
       text: pack
         ? `${pack.company} board Q&A is ready. Ask about this quarter's numbers — I'll answer from the governed datasets and render every answer as a widget.`
+        : insightDomain
+        ? `I can keep answering questions about "${insightDomain.label}" — ask me anything, like the ${initialPinned?.length ? "ones already pinned here" : "highest performer, why one is down, or the forecast"}.`
         : intro
         ? `Let me explain "${task.title}". ${intro} Ask me anything about how it works — or ask me to change it.`
         : `Hi, I'm the ${meta.label} agent. Ask me anything about "${task.title}" — I can adjust it, explain it, or rebuild a section.`,
@@ -2378,9 +2423,14 @@ function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  // Questions asked in THIS chat session, on top of whatever was already
+  // pinned when the dashboard was saved — feeds the suggested-question chips
+  // so they never repeat something already answered.
+  const [askedInChat, setAskedInChat] = useState<AskAnswerRecord[]>(initialPinned ?? []);
 
   const answeredIds = messages.filter((m) => m.answer).map((m) => m.answer!.id);
   const nextQuestion = pack ? nextBoardQuestion(pack, answeredIds) : null;
+  const insightFollowUps = insightDomain ? suggestedFollowUps(insightDomain, askedInChat) : [];
 
   const send = (raw?: string) => {
     const text = (raw ?? input).trim();
@@ -2400,6 +2450,18 @@ function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string
             text: remaining.length
               ? `I couldn't match that to a governed metric on this dashboard. This board pack can answer: ${remaining.join(" · ")}`
               : "That's everything in this board pack — every question has been answered. Ask the Report Generator to compile this into a board report.",
+          }]);
+        }
+      } else if (insightDomain) {
+        const parsed = isAnalyticalQuestion(text, insightDomain, [insightDomain]) ? parseQuestion(text, insightDomain, [insightDomain]) : null;
+        if (parsed) {
+          const result = answerQuestion(parsed);
+          setAskedInChat((cur) => [...cur, { id: `chat-${Date.now()}`, question: text, result, pinned: true }]);
+          setMessages((m) => [...m, { id: `a${m.length}`, role: "assistant", text: result.summary ?? result.title, insightAnswer: result }]);
+        } else {
+          setMessages((m) => [...m, {
+            id: `a${m.length}`, role: "assistant",
+            text: `I couldn't match that to "${insightDomain.label}"'s data. Try asking about ${insightDomain.measures.map((x) => x.label.toLowerCase()).join(" or ")}${insightDomain.dimensions.length ? ` by ${insightDomain.dimensions.filter((d) => d.key !== insightDomain.reasonDimensionKey).map((x) => x.label.toLowerCase()).join(" or ")}` : ""}.`,
           }]);
         }
       } else {
@@ -2445,6 +2507,12 @@ function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string
                 <PackChartView chart={m.answer.chart} height={170} />
                 <div className="mt-2 text-foreground" style={{ fontSize: "12.5px", lineHeight: 1.55 }}>{m.text}</div>
               </div>
+            ) : m.insightAnswer ? (
+              <div className="w-full rounded-[12px] border border-border bg-card p-3">
+                <div className="mb-1 text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>{m.insightAnswer.title}</div>
+                <AnswerChartView result={m.insightAnswer} />
+                <div className="mt-2 text-foreground" style={{ fontSize: "12.5px", lineHeight: 1.55 }}>{m.text}</div>
+              </div>
             ) : (
               <div
                 className={`max-w-[85%] rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "border border-border bg-card text-foreground"}`}
@@ -2467,6 +2535,22 @@ function ChatPanel({ meta, task, intro, onClose, pack }: { meta: { label: string
             <Sparkles className="h-3 w-3 flex-shrink-0 opacity-60" />
             <span className="min-w-0 truncate">{nextQuestion}</span>
           </button>
+        </div>
+      )}
+      {!pack && insightDomain && insightFollowUps.length > 0 && !typing && (
+        <div className="flex-shrink-0 px-3 pt-2">
+          <div className="flex flex-wrap gap-1.5">
+            {insightFollowUps.map((q) => (
+              <button
+                key={q}
+                onClick={() => send(q)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+                style={{ fontSize: "11px" }}
+              >
+                <Sparkles className="h-3 w-3 flex-shrink-0 opacity-60" />{q}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       <div className="flex-shrink-0 border-t border-border p-3">
@@ -2513,6 +2597,65 @@ function FieldLabel({ label, optional }: { label: string; optional?: boolean }) 
 }
 
 
+// Renders one Ask Insights answer using the same chart primitives the rest
+// of the app already uses. Module-level (not nested in BiTasksAgent) so it's
+// reusable from both the live studio session and a saved dashboard's own
+// preview/AI Assistant, reopened later with no studio state at all.
+function AnswerChartView({ result }: { result: AnswerResult }) {
+  if (result.chartType === "kpi") {
+    return (
+      <div style={{ textAlign: "center", padding: "16px 0" }}>
+        <div className="vw-card-metric-xxxl">{result.kpiValue}</div>
+      </div>
+    );
+  }
+  if (result.chartType === "line" && result.series && result.labels) {
+    return <SvgAreaLineChart series={result.series} labels={result.labels} height={200} />;
+  }
+  if (result.chartType === "bar" && result.bars) {
+    return <SvgBarChart data={result.bars} height={200} />;
+  }
+  if (result.chartType === "donut" && result.segments) {
+    return <SvgDonutChart segments={result.segments} height={200} />;
+  }
+  if (result.chartType === "list" && result.items) {
+    return (
+      <ol style={{ margin: 0, padding: "6px 0 2px", listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+        {result.items.map((item, i) => (
+          <li key={i} style={{ display: "flex", gap: 10, fontSize: 13, lineHeight: 1.55 }}>
+            <span
+              className="flex-shrink-0"
+              style={{
+                width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--vw-color-emerald-50)", color: "var(--vw-color-emerald-600)", fontWeight: 700, fontSize: 11.5,
+              }}
+            >
+              {i + 1}
+            </span>
+            <span className="text-foreground">{item}</span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  return null;
+}
+
+// Questions not yet asked of a given insight domain — shared by the studio's
+// dashboard header, its persistent chat chip row, and a saved dashboard's
+// own AI Assistant chat, so all three stay consistent.
+function suggestedFollowUps(d: InsightDomain | null | undefined, asked: AskAnswerRecord[]): string[] {
+  if (!d) return [];
+  const askedSet = new Set(asked.map((a) => a.question.toLowerCase()));
+  const out: string[] = [];
+  const dims = d.dimensions.filter((x) => x.key !== d.reasonDimensionKey);
+  for (const mm of d.measures) for (const dim of dims) out.push(`Which ${dim.label.toLowerCase()} has the highest ${mm.label.toLowerCase()}?`);
+  if (d.timeOrder.length >= 2) for (const mm of d.measures) out.push(`Show the ${mm.label.toLowerCase()} trend`);
+  for (const mm of d.measures) out.push(`What is the total ${mm.label.toLowerCase()}?`);
+  if (d.reasonDimensionKey) out.push("How do we overcome this?");
+  return out.filter((q) => !askedSet.has(q.toLowerCase())).slice(0, 4);
+}
+
 export interface BreadcrumbState { extra: { label: string }[]; backToRoot?: () => void }
 
 export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboard }: { kind: BiTaskKind; onBreadcrumb?: (state: BreadcrumbState) => void; initialPrompt?: string; initialDashboard?: string }) {
@@ -2553,11 +2696,14 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
   const selectedReport = kind === "report" && selected ? REPORT_LIST.find((r) => r.id === selected.id) : undefined;
 
   // --- AI Creation Studio (all 4 kinds) ----------------------------------
-  type StudioMsg = { role: "user" | "agent"; text: string };
+  // Studio chat messages can carry a rendered answer (widget + summary) and
+  // action chips (download the consolidated file / start visualization).
+  type StudioMsgAction = "download-csv" | "visualize";
+  type StudioMsg = { role: "user" | "agent"; text: string; answer?: AnswerResult; chips?: { label: string; action: StudioMsgAction }[] };
   const [studioMessages, setStudioMessages] = useState<StudioMsg[]>([]);
   const [studioInput, setStudioInput] = useState("");
   const [studioThinking, setStudioThinking] = useState(false);
-  const [studioStage, setStudioStage] = useState<"gather" | "verify" | "generating" | "result" | "saved">("gather");
+  const [studioStage, setStudioStage] = useState<"gather" | "verify" | "analyzing" | "generating" | "result" | "saved">("gather");
   const [studioApplication, setStudioApplication] = useState<string | null>(null);
   const [studioDatasource, setStudioDatasource] = useState<string | null>(null);
   const [studioDataset, setStudioDataset] = useState<string | null>(null);
@@ -2581,14 +2727,30 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
   // Once a message is classified as a real analytical question, studioMode
   // flips to "ask" for the rest of the session: every further message is
   // answered as a question (a pinned chart), not treated as a create command.
-  type AskAnswerRecord = { id: string; question: string; result: AnswerResult; pinned: boolean };
+  // (AskAnswerRecord itself is declared module-level, above DashboardRow.)
   const [studioMode, setStudioMode] = useState<"create" | "ask">("create");
   const [askAnswers, setAskAnswers] = useState<AskAnswerRecord[]>([]);
   const [askDomain, setAskDomain] = useState<InsightDomain | null>(null);
   // Datasets the user imported (CSV) this session — when any exist, questions
   // are answered ONLY from them, never from the built-in sample domains.
   const [importedDomains, setImportedDomains] = useState<InsightDomain[]>([]);
+  // Multi-file consolidation flow: several files picked together are STAGED
+  // (listed, not yet read into a domain) until the user clicks "Analyze
+  // files" — which then runs the visible pipeline: datasource → dataset →
+  // questions → widgets → compose (see handleAnalyzeFiles).
+  const [stagedFiles, setStagedFiles] = useState<{ name: string; text: string; rows: number }[]>([]);
+  const [analysisStep, setAnalysisStep] = useState(0);
+  const [analysisQuestions, setAnalysisQuestions] = useState<string[]>([]);
+  const [analysisAnswers, setAnalysisAnswers] = useState<AskAnswerRecord[]>([]);
+  // True between "files consolidated" and the user accepting/declining the
+  // "shall I visualize it?" offer in chat.
+  const [pendingVisualizeOffer, setPendingVisualizeOffer] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
+  const studioChatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    studioChatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [studioMessages, studioThinking]);
   const initialPromptConsumed = useRef(false);
 
   const STUDIO_STEPS: Record<BiTaskKind, string[]> = {
@@ -2710,6 +2872,23 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
   const handleImportFiles = async (files: FileList | File[]) => {
     const list = Array.from(files).filter((f) => /\.csv$/i.test(f.name) || f.type === "text/csv");
     if (!list.length) return;
+    // Several files picked together (or added to an existing staging tray)
+    // before anything was analyzed → stage them and wait for "Analyze files".
+    if (kind === "dashboard" && importedDomains.length === 0 && (list.length >= 2 || stagedFiles.length > 0)) {
+      const read = await Promise.all(list.map(async (f) => {
+        const text = await f.text();
+        return { name: f.name, text, rows: Math.max(0, text.trim().split(/\r?\n/).length - 1) };
+      }));
+      setStagedFiles((cur) => {
+        const next = [...cur.filter((c) => !read.some((r) => r.name === c.name)), ...read];
+        setStudioMessages((m) => [...m, {
+          role: "agent",
+          text: `Received ${read.length} file${read.length === 1 ? "" : "s"} — ${next.length} staged in total (${next.map((f) => f.name).join(", ")}). Click "Analyze files" and I'll consolidate them into one report, generate the questions, and compose the widgets.`,
+        }]);
+        return next;
+      });
+      return;
+    }
     setStudioThinking(true);
     let domains = importedDomains;
     let lastDomain: InsightDomain | null = null;
@@ -2742,6 +2921,155 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
     }, 700);
   };
 
+  // "Analyze files" — the visible consolidation pipeline. Everything is
+  // computed up front (consolidate → auto-questions → answers), then revealed
+  // step by step: datasource → dataset → questions → widgets → compose.
+  const handleAnalyzeFiles = () => {
+    if (!stagedFiles.length) return;
+    let domains: InsightDomain[] = [];
+    let lastDomain: InsightDomain | null = null;
+    const skipped: string[] = [];
+    for (const f of stagedFiles) {
+      try {
+        const { domain } = buildImportedDomain(f.name, f.text, domains);
+        domains = [...domains.filter((d) => d.key !== domain.key), domain];
+        lastDomain = domain;
+      } catch (err) {
+        skipped.push(`${f.name} (${err instanceof Error ? err.message : "unreadable"})`);
+      }
+    }
+    if (!lastDomain) {
+      setStudioMessages((m) => [...m, { role: "agent", text: `I couldn't read any of the staged files — ${skipped.join("; ")}.` }]);
+      return;
+    }
+    const domain = lastDomain;
+    setImportedDomains(domains);
+    setAskDomain(domain);
+    setStudioMode("ask");
+    setPendingVisualizeOffer(true);
+    setStudioMessages((m) => [...m,
+      {
+        role: "agent",
+        text: `Analyzed ${stagedFiles.length} files and generated the consolidated file: "${domain.label}" — ${domain.rows.length} rows${domain.timeOrder.length ? ` (${domain.timeOrder[0]} – ${domain.timeOrder[domain.timeOrder.length - 1]})` : ""}. Categories: ${domain.dimensions.map((d) => d.label).join(", ") || "—"}. Measures: ${domain.measures.map((mm) => mm.label).join(", ")}.${skipped.length ? ` (Skipped ${skipped.join("; ")}.)` : ""}`,
+        chips: [{ label: "Download consolidated file (CSV)", action: "download-csv" }],
+      },
+      {
+        role: "agent",
+        text: "Shall I visualize the consolidated file? I'll register the datasource and dataset, generate analytical questions from the data, answer each as a widget, and compose them into a dashboard.",
+        chips: [{ label: "Yes — visualize it", action: "visualize" }],
+      },
+    ]);
+  };
+
+  // Phase 2 — runs when the user accepts the visualize offer: generate the
+  // questions from the consolidated data, answer each as a widget, and walk
+  // the visible pipeline (datasource → dataset → questions → widgets →
+  // compose) into the finished dashboard.
+  const startVisualizationPipeline = () => {
+    const domain = askDomain;
+    if (!domain) return;
+    setPendingVisualizeOffer(false);
+    const questions = domain.reasonDimensionKey && domain.dimensions.length && domain.measures.length
+      ? (() => {
+          const base = suggestedQuestions(domain);
+          return [base[0], base[1], "How do we overcome this?", base[2]].filter(Boolean) as string[];
+        })()
+      : suggestedQuestions(domain);
+    const answers: AskAnswerRecord[] = [];
+    questions.forEach((q, i) => {
+      const parsed = parseQuestion(q, domain, importedDomains.length ? importedDomains : [domain]);
+      if (parsed) answers.push({ id: `auto-${Date.now()}-${i}`, question: q, result: answerQuestion(parsed), pinned: true });
+    });
+    setAnalysisQuestions(questions);
+    setAnalysisAnswers(answers);
+    setStudioStage("analyzing");
+    setAnalysisStep(1);
+    setStudioMessages((m) => [...m, {
+      role: "agent",
+      text: `Visualizing "${domain.label}" — registering the datasource, preparing the dataset, generating questions, and composing their widgets…`,
+    }]);
+    setTimeout(() => setAnalysisStep(2), 1200);
+    setTimeout(() => setAnalysisStep(3), 2600);
+    setTimeout(() => setAnalysisStep(4), 4000);
+    setTimeout(() => setAnalysisStep(5), 5400);
+    setTimeout(() => {
+      setAskAnswers((a) => [...a, ...answers]);
+      setStudioTitle(`${domain.label} insights dashboard`);
+      setStudioSeed(Date.now());
+      setStudioStage("result");
+      setStudioMessages((m) => [...m, {
+        role: "agent",
+        text: `Done — ${answers.length} questions answered and composed as widgets on "${domain.label} insights dashboard". Use the suggested questions on the dashboard to keep exploring — each answer appears here with its widget and lands on the dashboard. You can also download the full report or save the dashboard as a draft.`,
+      }]);
+    }, 6600);
+  };
+
+  // Downloads the consolidated dataset itself as a CSV (the "consolidated
+  // file" — distinct from the findings report below).
+  const handleDownloadConsolidatedCsv = () => {
+    const domain = askDomain;
+    if (!domain) return;
+    const timeLabel = domain.timeDimensionKey ? domain.timeDimensionKey.charAt(0).toUpperCase() + domain.timeDimensionKey.slice(1) : "";
+    const reasonDim = domain.dimensions.find((d) => d.key === domain.reasonDimensionKey);
+    const cols = [
+      ...domain.dimensions.filter((d) => d.key !== domain.reasonDimensionKey).map((d) => ({ key: d.key, label: d.label })),
+      ...(domain.timeDimensionKey ? [{ key: domain.timeDimensionKey, label: timeLabel }] : []),
+      ...domain.measures.map((mm) => ({ key: mm.key, label: mm.label })),
+      ...(reasonDim ? [{ key: reasonDim.key, label: reasonDim.label }] : []),
+    ];
+    const cell = (v: string | number | undefined) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [cols.map((c) => cell(c.label)).join(","), ...domain.rows.map((r) => cols.map((c) => cell(r[c.key])).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${domain.label} — Consolidated.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  };
+
+  // Downloads the consolidated analysis as a self-contained HTML report:
+  // source files, inferred schema, every finding's values, and the full
+  // consolidated data table.
+  const handleDownloadReport = () => {
+    const domain = askDomain;
+    if (!domain) return;
+    const esc = (s: string | number) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const columns = [...domain.dimensions.map((d) => ({ key: d.key, label: d.label })), ...(domain.timeDimensionKey ? [{ key: domain.timeDimensionKey, label: "Period" }] : []), ...domain.measures.map((mm) => ({ key: mm.key, label: mm.label }))];
+    const findingHtml = (a: AskAnswerRecord) => {
+      const r = a.result;
+      let body = "";
+      if (r.bars) body = `<table><tr><th>Label</th><th>Value</th></tr>${r.bars.map((b) => `<tr><td>${esc(b.label)}</td><td>${esc(b.value)}</td></tr>`).join("")}</table>`;
+      else if (r.segments) body = `<table><tr><th>Cited reason</th><th>Cases</th></tr>${r.segments.map((s) => `<tr><td>${esc(s.label)}</td><td>${esc(s.value)}</td></tr>`).join("")}</table>`;
+      else if (r.items) body = `<ol>${r.items.map((it) => `<li>${esc(it)}</li>`).join("")}</ol>`;
+      else if (r.series && r.labels) body = `<table><tr><th>Period</th>${r.series.map((s) => `<th>${esc(s.name)}</th>`).join("")}</tr>${r.labels.map((lbl, i) => `<tr><td>${esc(lbl)}</td>${r.series!.map((s) => `<td>${s.values[i] === null || s.values[i] === undefined ? "—" : esc(s.values[i] as number)}</td>`).join("")}</tr>`).join("")}</table>`;
+      else if (r.kpiValue) body = `<p class="kpi">${esc(r.kpiValue)}</p>`;
+      return `<section><h3>${esc(r.title)}</h3><p class="q">Q: ${esc(a.question)}</p>${body}</section>`;
+    };
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(domain.label)} — Consolidated Report</title>
+<style>body{font:14px/1.55 system-ui,sans-serif;color:#1c1917;max-width:820px;margin:32px auto;padding:0 20px}h1{font-size:24px;margin-bottom:4px}h2{font-size:16px;margin-top:28px;border-bottom:1px solid #e7e5e4;padding-bottom:6px}h3{font-size:14.5px;margin:18px 0 4px}.meta,.q{color:#78716c;font-size:12.5px}table{border-collapse:collapse;margin:8px 0;width:100%}th,td{border:1px solid #e7e5e4;padding:5px 9px;text-align:left;font-size:12.5px}th{background:#fafaf9}.kpi{font-size:26px;font-weight:700}ol{margin:8px 0;padding-left:20px}li{margin-bottom:6px}</style></head><body>
+<h1>${esc(domain.label)} — Consolidated Report</h1>
+<p class="meta">Generated ${new Date().toLocaleString()} · ${domain.rows.length} rows${stagedFiles.length ? ` consolidated from ${stagedFiles.length} files` : ""}${domain.timeOrder.length ? ` · ${esc(domain.timeOrder[0])} – ${esc(domain.timeOrder[domain.timeOrder.length - 1])}` : ""}</p>
+${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>${esc(f.name)} — ${f.rows} rows</li>`).join("")}</ul>` : ""}
+<h2>Dataset</h2><p>Categories: ${esc(domain.dimensions.map((d) => d.label).join(", ") || "—")} · Measures: ${esc(domain.measures.map((mm) => mm.label).join(", "))}${domain.timeDimensionKey ? ` · Time: ${esc(domain.timeOrder.join(", "))}` : ""}</p>
+<h2>Findings</h2>${askAnswers.filter((a) => a.pinned).map(findingHtml).join("")}
+<h2>Appendix — consolidated data (${domain.rows.length} rows)</h2>
+<table><tr>${columns.map((c) => `<th>${esc(c.label)}</th>`).join("")}</tr>${domain.rows.map((row) => `<tr>${columns.map((c) => `<td>${esc(row[c.key] ?? "")}</td>`).join("")}</tr>`).join("")}</table>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${domain.label} — Consolidated Report.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  };
+
   const sendStudioMessage = (raw?: string) => {
     const text = (raw ?? studioInput).trim();
     if (!text) return;
@@ -2749,8 +3077,24 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
     setStudioInput("");
     setStudioThinking(true);
     setTimeout(() => {
-      let reply: string;
-      if (kind === "report") {
+      let reply: string | null;
+      let replyAnswer: AnswerResult | undefined;
+      // Recognized up front, before ask-insights/real-match — so a Home-forwarded
+      // ask like "import sales reports from different regions" (or anything typed
+      // directly here) reliably surfaces the import affordance instead of falling
+      // through to the generic "pick an application" cascade.
+      const isImportIntent = kind === "dashboard" && stagedFiles.length === 0 && importedDomains.length === 0
+        && /\bimport\b|\bupload\b|\bconsolidat|\bmultiple\s+(files|regions?|reports?)\b|\bregional\s+(files|reports?|data)\b|\bdifferent\s+regions?\b/i.test(text);
+      if (kind === "dashboard" && stagedFiles.length > 0 && importedDomains.length === 0) {
+        reply = `You have ${stagedFiles.length} file${stagedFiles.length === 1 ? "" : "s"} staged — click "Analyze files" on the right first, and I'll consolidate them, then answer questions like that from the merged data.`;
+      } else if (kind === "dashboard" && pendingVisualizeOffer && /^(y(es|ep|eah)?\b|sure\b|ok(ay)?\b|go ahead|please do|visuali[sz]e|build (it|the dashboard))/i.test(text)) {
+        reply = null;
+        startVisualizationPipeline();
+      } else if (kind === "dashboard" && pendingVisualizeOffer && /^(no\b|not now|later\b|skip\b)/i.test(text)) {
+        reply = "No problem — the consolidated file is ready to download above. Ask me a question about the data anytime, or say \"visualize\" whenever you want the dashboard built.";
+      } else if (isImportIntent) {
+        reply = "Sure — click \"Import data (CSV)\" below (or drop your files there) and select your regional files. I'll read each one and consolidate them into a single report — then we can visualize it together.";
+      } else if (kind === "report") {
         const found = extractReportInfo(text);
         const nextDashboards = found.dashboards.length ? Array.from(new Set([...studioReportDashboards, ...found.dashboards])) : studioReportDashboards;
         const nextFrequency = found.frequency ?? studioReportFrequency;
@@ -2793,7 +3137,8 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
           setAskDomain(parsed.domain);
           setStudioMode("ask");
           const sourceNote = parsed.domain.key.startsWith("imported-") ? ` (from ${parsed.domain.label})` : "";
-          reply = `Here's ${result.title.toLowerCase()}${sourceNote} — pinned to your dashboard. Ask another question, or build the dashboard from what you've pinned so far.`;
+          replyAnswer = result;
+          reply = `${result.summary ?? `Here's ${result.title.toLowerCase()}`}${sourceNote} — pinned to your dashboard.`;
         } else if (importedDomains.length) {
           const d = importedDomains[importedDomains.length - 1];
           reply = `I couldn't match that to your imported data (${d.label}). Try asking about ${d.measures.map((x) => x.label.toLowerCase()).join(" or ")}${d.dimensions.length ? ` by ${d.dimensions.map((x) => x.label.toLowerCase()).join(" or ")}` : ""}.`;
@@ -2811,8 +3156,9 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
         reply = genericCatalogExtractReply(text);
       }
       setStudioThinking(false);
-      setStudioMessages((m) => [...m, { role: "agent", text: reply }]);
-      setStudioStage((s) => (s === "gather" ? "verify" : s));
+      if (reply !== null) setStudioMessages((m) => [...m, { role: "agent", text: reply, ...(replyAnswer ? { answer: replyAnswer } : {}) }]);
+      const holdInGather = kind === "dashboard" && (pendingVisualizeOffer || isImportIntent || (stagedFiles.length > 0 && importedDomains.length === 0));
+      if (!holdInGather) setStudioStage((s) => (s === "gather" ? "verify" : s));
     }, 650);
   };
 
@@ -2886,6 +3232,9 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
         id, status: "Draft", name: studioTitle, displayName: studioTitle,
         packageName: mapping.packageName, moduleName: mapping.moduleName, accessLevel: "Private",
         scheduled: false, creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
+        // Ask Insights dashboards carry their data forward, so this saved
+        // row's own preview + AI Assistant keep working the same way later.
+        ...(studioMode === "ask" && askDomain ? { insightDomain: askDomain, pinnedAnswers: askAnswers.filter((a) => a.pinned) } : {}),
       });
     } else if (kind === "widget") {
       WIDGET_LIST.unshift({
@@ -2929,6 +3278,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
     setStudioMatchedWidget(null); setStudioMatchedDataset(null); setStudioMatchedDashboard(null);
     setStudioDashboardWidgetSelection([]); setStudioRunnerUp(null); setStudioManualOverride(false);
     setStudioMode("create"); setAskAnswers([]); setAskDomain(null); setImportedDomains([]);
+    setStagedFiles([]); setAnalysisStep(0); setAnalysisQuestions([]); setAnalysisAnswers([]); setPendingVisualizeOffer(false);
     setStudioTitle(""); setStudioExpanded(false);
   };
 
@@ -2955,6 +3305,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
           {kind === "dashboard" ? (
             <DashboardPreview
               title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+              insightDomain={selected.insightDomain} pinnedAnswers={selected.pinnedAnswers}
               onExplainAi={() => openChat(selected, true)}
               onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
               onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
@@ -3007,6 +3358,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
             {kind === "dashboard" ? (
               <DashboardPreview
                 title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
+                insightDomain={selected.insightDomain} pinnedAnswers={selected.pinnedAnswers}
                 onExplainAi={() => openChat(selected, true)}
                 onSubmit={() => flashAndBack(`"${selected.title}" submitted for approval ✓`)}
                 onDiscard={() => flashAndBack(`"${selected.title}" discarded`)}
@@ -3046,7 +3398,12 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
             )}
           </div>
           <div className="w-[40%] flex-shrink-0">
-            <ChatPanel meta={meta} task={selected} intro={explainIntro ? EXPLAIN[kind] : undefined} onClose={() => setView("preview")} pack={kind === "dashboard" ? findPackByDashboard(selected.title) : null} />
+            <ChatPanel
+              meta={meta} task={selected} intro={explainIntro ? EXPLAIN[kind] : undefined} onClose={() => setView("preview")}
+              pack={kind === "dashboard" ? findPackByDashboard(selected.title) : null}
+              insightDomain={kind === "dashboard" ? selected.insightDomain : undefined}
+              initialPinned={kind === "dashboard" ? selected.pinnedAnswers : undefined}
+            />
           </div>
         </div>
       </div>
@@ -3054,43 +3411,44 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
   }
 
   if (view === "studio") {
-    // Renders one Ask Insights answer using the same chart primitives the
-    // rest of the app already uses — no new chart components.
-    const renderAnswerChart = (result: AnswerResult) => {
-      if (result.chartType === "kpi") {
-        return (
-          <div style={{ textAlign: "center", padding: "16px 0" }}>
-            <div className="vw-card-metric-xxxl">{result.kpiValue}</div>
-          </div>
-        );
-      }
-      if (result.chartType === "line" && result.series && result.labels) {
-        return <SvgAreaLineChart series={result.series} labels={result.labels} height={200} />;
-      }
-      if (result.chartType === "bar" && result.bars) {
-        return <SvgBarChart data={result.bars} height={200} />;
-      }
-      return null;
-    };
-
     // The final "dashboard" for Ask Insights mode is literally a grid of the
     // charts the user pinned while asking questions — not the generic mock
     // DashboardPreview — so the payoff is honest: these are the exact
     // widgets just asked for, arranged.
     const renderPinnedDashboard = () => {
       const pinned = askAnswers.filter((a) => a.pinned);
+      // Follow-up questions the user hasn't asked yet — clicking one answers
+      // it in the chat (widget + summary) and adds it to this dashboard.
+      const followUps = suggestedFollowUps(askDomain, askAnswers);
       return (
         <div className="vw-flex vw-flex-col vw-page-gap" style={{ fontFamily: "Poppins, sans-serif" }}>
           <div className="vw-card-section">
             <span className="vw-page-title">{studioTitle}</span>
             <div className="vw-page-description" style={{ marginTop: 2 }}>
-              Built from {pinned.length} question{pinned.length === 1 ? "" : "s"} you asked — live insights, arranged as a dashboard.
+              {stagedFiles.length > 0 && askDomain
+                ? `Consolidated from ${stagedFiles.length} files (${askDomain.rows.length} rows) — ${pinned.length} insight${pinned.length === 1 ? "" : "s"} arranged as a dashboard.`
+                : `Built from ${pinned.length} question${pinned.length === 1 ? "" : "s"} you asked — live insights, arranged as a dashboard.`}
             </div>
+            {followUps.length > 0 && (
+              <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                <span className="vw-card-description" style={{ fontSize: 12 }}>Suggested questions:</span>
+                {followUps.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => sendStudioMessage(q)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+                    style={{ fontSize: "11.5px", fontFamily: "Inter, sans-serif" }}
+                  >
+                    <Sparkles className="h-3 w-3 opacity-60" />{q}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
             {pinned.map((a) => (
               <ChartCard key={a.id} title={a.result.title} subtitle={a.question}>
-                {renderAnswerChart(a.result)}
+                <AnswerChartView result={a.result} />
               </ChartCard>
             ))}
           </div>
@@ -3160,16 +3518,40 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
             <span className="text-foreground" style={{ fontSize: "13.5px", fontWeight: 600 }}>{meta.label} — AI Assistant</span>
           </div>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
-            {studioMessages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "bg-muted/50 text-foreground"}`}
-                  style={{ fontSize: "13px", lineHeight: 1.5 }}
-                >
-                  {m.text}
+            {studioMessages.map((m, i) => {
+              const chips = (m.chips ?? []).filter((c) => c.action !== "visualize" || pendingVisualizeOffer);
+              return (
+                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`${m.answer ? "w-full" : "max-w-[85%]"} rounded-[12px] px-3.5 py-2.5 ${m.role === "user" ? "bg-primary text-white" : "bg-muted/50 text-foreground"}`}
+                    style={{ fontSize: "13px", lineHeight: 1.5 }}
+                  >
+                    {m.answer && (
+                      <div className="mb-2 rounded-[10px] border border-border bg-card p-3">
+                        <div className="mb-1 text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>{m.answer.title}</div>
+                        <AnswerChartView result={m.answer} />
+                      </div>
+                    )}
+                    {m.text}
+                    {chips.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {chips.map((c) => (
+                          <button
+                            key={c.label}
+                            onClick={() => (c.action === "download-csv" ? handleDownloadConsolidatedCsv() : sendStudioMessage("Yes — visualize it"))}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-primary transition-colors hover:bg-primary/10"
+                            style={{ fontSize: "11.5px", fontWeight: 600 }}
+                          >
+                            {c.action === "download-csv" ? <Download className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                            {c.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {studioThinking && (
               <div className="flex justify-start">
                 <div className="inline-flex items-center gap-1 rounded-[12px] bg-muted/50 px-3.5 py-3">
@@ -3179,7 +3561,27 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                 </div>
               </div>
             )}
+            <div ref={studioChatEndRef} />
           </div>
+          {kind === "dashboard" && studioMode === "ask" && askDomain && !studioThinking && (() => {
+            const chatFollowUps = suggestedFollowUps(askDomain, askAnswers);
+            return chatFollowUps.length > 0 ? (
+              <div className="flex-shrink-0 border-t border-border bg-card/60 px-4 py-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {chatFollowUps.map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => sendStudioMessage(q)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-muted-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+                      style={{ fontSize: "11px" }}
+                    >
+                      <Sparkles className="h-3 w-3 opacity-60" />{q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
           <div className="flex-shrink-0 border-t border-border px-4 py-3">
             <div className="flex items-end gap-2 rounded-[12px] border border-border bg-card px-3 py-2 focus-within:border-primary/40">
               {kind === "dashboard" && (
@@ -3249,6 +3651,30 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                   >
                     <Upload className="h-4 w-4" /> Import data (CSV) — or drop a file here
                   </button>
+                  {stagedFiles.length > 0 && importedDomains.length === 0 && (
+                    <div className="mt-4 w-full max-w-[440px] rounded-[12px] border border-border bg-card p-4 text-left">
+                      <div className="mb-2 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <span className="text-foreground" style={{ fontSize: "12.5px", fontWeight: 600 }}>Uploaded files</span>
+                        <span className="text-muted-foreground" style={{ fontSize: "11px" }}>· {stagedFiles.length}</span>
+                      </div>
+                      <div className="mb-3 flex flex-col gap-1.5">
+                        {stagedFiles.map((f) => (
+                          <div key={f.name} className="flex items-center justify-between gap-2 rounded-[8px] bg-muted/40 px-2.5 py-1.5">
+                            <span className="min-w-0 truncate text-foreground" style={{ fontSize: "12px", fontWeight: 500 }}>{f.name}</span>
+                            <span className="flex-shrink-0 text-muted-foreground" style={{ fontSize: "11px" }}>{f.rows} rows</span>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleAnalyzeFiles}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-primary px-4 py-2.5 text-white transition-opacity hover:opacity-90"
+                        style={{ fontSize: "13px", fontWeight: 600 }}
+                      >
+                        <Sparkles className="h-4 w-4" /> Analyze files → consolidated report
+                      </button>
+                    </div>
+                  )}
                   {importedDomains.length > 0 && (
                     <div className="mt-4 w-full max-w-[440px] rounded-[12px] border border-border bg-card p-4 text-left">
                       <div className="mb-2 flex items-center gap-2">
@@ -3269,7 +3695,9 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                     </div>
                   )}
                   <div className="mt-4 flex max-w-[440px] flex-wrap justify-center gap-2">
-                    {(importedDomains.length
+                    {(stagedFiles.length > 0 && importedDomains.length === 0
+                      ? []
+                      : importedDomains.length
                       ? suggestedQuestions(importedDomains[importedDomains.length - 1])
                       : ["What is the strongest selling region?", "Which region has the highest units of Laptops sold?", "Which vendor has the highest spend?"]
                     ).map((q) => (
@@ -3309,7 +3737,7 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                         {a.pinned ? "Pinned" : "Pin"}
                       </button>
                     </div>
-                    {renderAnswerChart(a.result)}
+                    <AnswerChartView result={a.result} />
                   </div>
                 ))}
               </div>
@@ -3461,6 +3889,64 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
             </div>
           )}
 
+          {studioStage === "analyzing" && (
+            <div className="mx-auto max-w-[560px] py-10">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <Loader className="h-5 w-5 animate-spin text-primary" />
+                </div>
+                <div>
+                  <div className="text-foreground" style={{ fontSize: "15px", fontWeight: 600 }}>Analyzing {stagedFiles.length} files</div>
+                  <div className="text-muted-foreground" style={{ fontSize: "12.5px" }}>Consolidating into one report, then composing the widgets</div>
+                </div>
+              </div>
+              <div className="rounded-[14px] border border-border bg-card p-5">
+                {[
+                  { label: "Datasource", detail: `${stagedFiles.length} uploaded files registered — ${stagedFiles.map((f) => f.name).join(", ")}` },
+                  { label: "Dataset", detail: askDomain ? `Consolidated "${askDomain.label}" — ${askDomain.rows.length} rows${askDomain.timeOrder.length ? ` (${askDomain.timeOrder[0]} – ${askDomain.timeOrder[askDomain.timeOrder.length - 1]})` : ""}` : "Consolidating…" },
+                  { label: "Questions", detail: `${analysisQuestions.length} analytical questions generated from the data` },
+                  { label: "Widgets", detail: "Each question answered as a widget" },
+                  { label: "Compose", detail: "Arranging the widgets into a dashboard" },
+                ].map((step, i) => {
+                  const stepNo = i + 1;
+                  const done = analysisStep > stepNo;
+                  const active = analysisStep === stepNo;
+                  return (
+                    <div key={step.label} className={`flex gap-3 py-2.5${i < 4 ? " border-b border-border/60" : ""}`}>
+                      {done ? (
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#047857]" />
+                      ) : active ? (
+                        <Loader className="mt-0.5 h-4 w-4 flex-shrink-0 animate-spin text-primary" />
+                      ) : (
+                        <div className="mt-0.5 h-4 w-4 flex-shrink-0 rounded-full border border-border" />
+                      )}
+                      <div className="min-w-0" style={{ opacity: done || active ? 1 : 0.45 }}>
+                        <div className="text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>{step.label}</div>
+                        <div className="text-muted-foreground" style={{ fontSize: "12px", lineHeight: 1.5 }}>{step.detail}</div>
+                        {step.label === "Questions" && (done || active) && analysisQuestions.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {analysisQuestions.map((q) => (
+                              <span key={q} className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-muted-foreground" style={{ fontSize: "11px" }}>{q}</span>
+                            ))}
+                          </div>
+                        )}
+                        {step.label === "Widgets" && (done || active) && analysisAnswers.length > 0 && (
+                          <div className="mt-1.5 flex flex-col gap-1">
+                            {analysisAnswers.map((a) => (
+                              <span key={a.id} className="flex items-center gap-1.5 text-foreground" style={{ fontSize: "12px" }}>
+                                <BarChart2 className="h-3 w-3 flex-shrink-0 text-primary" /> {a.result.title}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {studioStage === "generating" && (
             <div className="mx-auto flex max-w-[420px] flex-col items-center py-20 text-center">
               <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
@@ -3497,6 +3983,9 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-primary/20 bg-primary/5 px-4 py-3">
                   <span className="text-foreground" style={{ fontSize: "13px", fontWeight: 600 }}>Save this {TASK_NOUN[kind]} to keep working on it later?</span>
                   <div className="flex flex-shrink-0 gap-2">
+                    {studioMode === "ask" && importedDomains.length > 0 && (
+                      <button onClick={handleDownloadReport} className="nst-btn nst-btn--sm"><Download style={{ width: 14, height: 14 }} /> Download report</button>
+                    )}
                     <button onClick={resetStudio} className="nst-btn nst-btn--sm">Discard</button>
                     <button onClick={handleSaveDraft} className="nst-btn nst-btn--filled nst-btn--sm"><Check style={{ width: 14, height: 14 }} /> Save as draft</button>
                   </div>
@@ -3505,6 +3994,9 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border px-4 py-3" style={{ borderColor: "#D1FAE5", background: "#ECFDF5" }}>
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "#047857" }}>Saved ✓ — find it in your {TASK_NOUN[kind]} list anytime.</span>
                   <div className="flex flex-shrink-0 gap-2">
+                    {studioMode === "ask" && importedDomains.length > 0 && (
+                      <button onClick={handleDownloadReport} className="nst-btn nst-btn--sm"><Download style={{ width: 14, height: 14 }} /> Download report</button>
+                    )}
                     <button onClick={resetStudio} className="nst-btn nst-btn--sm">Create another</button>
                     <button onClick={() => setView("list")} className="nst-btn nst-btn--filled nst-btn--sm">View in list</button>
                   </div>

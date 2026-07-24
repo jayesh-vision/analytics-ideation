@@ -21,6 +21,9 @@ export interface InsightDomain {
   measures: InsightMeasure[];
   timeDimensionKey: string;
   timeOrder: string[];
+  /** Key of a "Remarks"/"Reason"-style column, when the data carries one —
+   *  powers root-cause and recommendation answers (see insightsEngine.ts). */
+  reasonDimensionKey?: string;
 }
 
 // Trailing 6 months up to the app's "current" date (matches the Jul-2026
