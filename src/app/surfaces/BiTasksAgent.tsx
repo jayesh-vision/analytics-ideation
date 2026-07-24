@@ -1399,10 +1399,21 @@ function HighlightCard({ tone, icon: Icon, title, sub }: { tone: "success" | "wa
   );
 }
 
-function ChartCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+function ChartCard({ title, subtitle, children, onRemove }: { title: string; subtitle: string; children: ReactNode; onRemove?: () => void }) {
   return (
-    <div className="vw-card-section">
-      <div className="vw-card-title-sm">{title}</div>
+    <div className="vw-card-section" style={{ position: "relative" }}>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove this widget from the dashboard"
+          className="flex-shrink-0 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          style={{ position: "absolute", top: 10, right: 10, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 999 }}
+        >
+          <X style={{ width: 14, height: 14 }} />
+        </button>
+      )}
+      <div className="vw-card-title-sm" style={onRemove ? { paddingRight: 28 } : undefined}>{title}</div>
       <div className="vw-card-description" style={{ marginBottom: 14 }}>{subtitle}</div>
       {children}
     </div>
@@ -2745,6 +2756,14 @@ export function BiTasksAgent({ kind, onBreadcrumb, initialPrompt, initialDashboa
   // True between "files consolidated" and the user accepting/declining the
   // "shall I visualize it?" offer in chat.
   const [pendingVisualizeOffer, setPendingVisualizeOffer] = useState(false);
+  // Guards against re-adding a Report list row on every repeat "Download
+  // report" click within the same session.
+  const [consolidatedReportSaved, setConsolidatedReportSaved] = useState(false);
+  // True once the user has said they want to import their own data but
+  // hasn't picked files yet — suppresses the built-in sample-domain starter
+  // chips so they're not offered questions about an unrelated demo dataset
+  // right below an "import your files" prompt.
+  const [awaitingImport, setAwaitingImport] = useState(false);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
   const studioChatEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -3068,6 +3087,24 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
     a.click();
     a.remove();
     URL.revokeObjectURL(a.href);
+
+    // Also lands in the Report Generator's own list as a Draft — same
+    // one-time-per-session guard pattern as the dashboard/report save flows,
+    // so re-downloading doesn't create duplicate rows.
+    if (!consolidatedReportSaved) {
+      const reportMapping = domain.key.startsWith("imported-")
+        ? { packageName: "ANALYTICS", moduleName: "Ad hoc analytics" }
+        : INSIGHT_DOMAIN_TO_PACKAGE[domain.key] ?? { packageName: "ANALYTICS", moduleName: "Operations analytics" };
+      const reportName = `${domain.label} — Consolidated Report`;
+      REPORT_LIST.unshift({
+        id: `rp-ai-${Date.now()}`, status: "Draft", name: reportName, displayName: reportName,
+        packageName: reportMapping.packageName, moduleName: reportMapping.moduleName, accessLevel: "Private",
+        frequency: "One-time", sourceDashboards: [studioTitle || domain.label],
+        creatorName: userName, lastActivityAgo: "Just now", lastActivityBy: userName,
+      });
+      setConsolidatedReportSaved(true);
+      setStudioMessages((m) => [...m, { role: "agent", text: `Downloaded — and saved as a draft in your Report list too: "${reportName}".` }]);
+    }
   };
 
   const sendStudioMessage = (raw?: string) => {
@@ -3093,6 +3130,7 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
       } else if (kind === "dashboard" && pendingVisualizeOffer && /^(no\b|not now|later\b|skip\b)/i.test(text)) {
         reply = "No problem — the consolidated file is ready to download above. Ask me a question about the data anytime, or say \"visualize\" whenever you want the dashboard built.";
       } else if (isImportIntent) {
+        setAwaitingImport(true);
         reply = "Sure — click \"Import data (CSV)\" below (or drop your files there) and select your regional files. I'll read each one and consolidate them into a single report — then we can visualize it together.";
       } else if (kind === "report") {
         const found = extractReportInfo(text);
@@ -3279,6 +3317,7 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
     setStudioDashboardWidgetSelection([]); setStudioRunnerUp(null); setStudioManualOverride(false);
     setStudioMode("create"); setAskAnswers([]); setAskDomain(null); setImportedDomains([]);
     setStagedFiles([]); setAnalysisStep(0); setAnalysisQuestions([]); setAnalysisAnswers([]); setPendingVisualizeOffer(false);
+    setConsolidatedReportSaved(false); setAwaitingImport(false);
     setStudioTitle(""); setStudioExpanded(false);
   };
 
@@ -3354,7 +3393,7 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
     return (
       <div className="flex h-full flex-col">
         <div className="flex min-h-0 flex-1">
-          <div className="w-[60%] flex-shrink-0 overflow-y-auto border-r border-border px-6 py-5">
+          <div className="w-[65%] flex-shrink-0 overflow-y-auto border-r border-border px-6 py-5">
             {kind === "dashboard" ? (
               <DashboardPreview
                 title={selected.title} approval={selected.approval} seed={seedFromId(selected.id)}
@@ -3397,7 +3436,7 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
               />
             )}
           </div>
-          <div className="w-[40%] flex-shrink-0">
+          <div className="w-[35%] flex-shrink-0">
             <ChatPanel
               meta={meta} task={selected} intro={explainIntro ? EXPLAIN[kind] : undefined} onClose={() => setView("preview")}
               pack={kind === "dashboard" ? findPackByDashboard(selected.title) : null}
@@ -3445,13 +3484,22 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
               </div>
             )}
           </div>
-          <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-            {pinned.map((a) => (
-              <ChartCard key={a.id} title={a.result.title} subtitle={a.question}>
-                <AnswerChartView result={a.result} />
-              </ChartCard>
-            ))}
-          </div>
+          {pinned.length > 0 ? (
+            <div className="vw-grid vw-gap-md" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+              {pinned.map((a) => (
+                <ChartCard
+                  key={a.id} title={a.result.title} subtitle={a.question}
+                  onRemove={() => setAskAnswers((cur) => cur.map((x) => (x.id === a.id ? { ...x, pinned: false } : x)))}
+                >
+                  <AnswerChartView result={a.result} />
+                </ChartCard>
+              ))}
+            </div>
+          ) : (
+            <div className="vw-card-section" style={{ textAlign: "center", color: "var(--vw-color-gray-500)" }}>
+              Every widget has been removed. Ask a new question to add one back, or discard this dashboard.
+            </div>
+          )}
         </div>
       );
     };
@@ -3511,8 +3559,8 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
 
     return (
       <div className="flex h-full">
-        {/* Left — chat, 40% */}
-        <div className="flex w-[40%] flex-shrink-0 flex-col border-r border-border">
+        {/* Left — chat, 35% */}
+        <div className="flex w-[35%] flex-shrink-0 flex-col border-r border-border">
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-card px-5 py-3">
             <meta.icon className="h-4 w-4 text-primary" />
             <span className="text-foreground" style={{ fontSize: "13.5px", fontWeight: 600 }}>{meta.label} — AI Assistant</span>
@@ -3623,7 +3671,7 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
           </div>
         </div>
 
-        {/* Right — result / steps, 60% */}
+        {/* Right — result / steps, 65% */}
         <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
           {studioStage === "gather" && (
             <div className="flex h-full flex-col items-center justify-center text-center">
@@ -3694,11 +3742,18 @@ ${stagedFiles.length ? `<h2>Source files</h2><ul>${stagedFiles.map((f) => `<li>$
                       ))}
                     </div>
                   )}
+                  {awaitingImport && stagedFiles.length === 0 && importedDomains.length === 0 && (
+                    <p className="mt-4 max-w-[340px] text-muted-foreground" style={{ fontSize: "11.5px", lineHeight: 1.5 }}>
+                      Pick your files above and I'll suggest questions grounded in what's actually in them.
+                    </p>
+                  )}
                   <div className="mt-4 flex max-w-[440px] flex-wrap justify-center gap-2">
                     {(stagedFiles.length > 0 && importedDomains.length === 0
                       ? []
                       : importedDomains.length
                       ? suggestedQuestions(importedDomains[importedDomains.length - 1])
+                      : awaitingImport
+                      ? []
                       : ["What is the strongest selling region?", "Which region has the highest units of Laptops sold?", "Which vendor has the highest spend?"]
                     ).map((q) => (
                       <button
